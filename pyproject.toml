@@ -1,0 +1,26 @@
+[project]
+name = "folium"
+version = "0.1.0"
+description = "Invoice data extracted, validated and de-duplicated, with human review and ERP export"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "BLE", "SIM", "RUF", "FIX", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["."]
+exclude = ["^\\.venv/", "^web/"]
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
