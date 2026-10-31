@@ -92,6 +92,10 @@ in Azure), `STORAGE` and `SERVICEBUS` (connection strings locally, the account U
 `python -m ops.seed` creates the database, containers and blob containers when a key is set, and loads the vendor master. The
 suite runs on an in-memory store; the same API flows were run against the emulators on 2026-10-31 (see phase 4).
 
+The web client, from `web/`: `npm ci`, then `npm run build` (type check and build). The Playwright suite runs on a demo build
+with the test runs: copy `e2e/runs.json` to `src/demo/runs/e2e.json`, run `VITE_DEMO_MODE=true npx vite build` and `npm test`,
+then delete the copy, which is never committed (`src/demo/runs/` holds only runs recorded from staging).
+
 ## Estate checked in phase 0 (2026-10-30, names and states only)
 
 - **GitHub:** public repository with issues and projects, no wiki or discussions, three merge methods, branches kept; ruleset
@@ -280,6 +284,63 @@ suite runs on an in-memory store; the same API flows were run against the emulat
   the total leaves about 90 Python lines for phases 5 to 8, so the Locust file and `ops/record.py` must stay short, and the
   test budget is full (699 of 700).
 
+## Decisions taken in phase 5
+
+- **One client, two transports.** Every call in `web/src/api.ts` goes through one function: `fetch` in live mode and, in demo
+  mode, a replay of the selected run's recorded exchanges (same method and path, in order, the last one repeated for polls,
+  after the recorded latency). The interface code is the same in both modes, so the demo is the deployed interface by
+  construction. A run file in `web/src/demo/runs/` holds one run or a list: title, prompt (it matches a suggestion), kind
+  (`upload`, `ask`, `export`, `open`), user (name and roles), date and exchanges. Phase 8's `ops/record.py` writes this format
+  from staging. In a run, a review card enables only the recorded decision and pre-fills its corrections and reason; a card
+  the run did not review keeps its decisions disabled.
+- **Published before the runs.** The merge of this phase publishes the demo with no runs: the band, the empty state, disabled
+  suggestions and "No recorded runs yet". The runs recorded from staging arrive in phase 8; nothing recorded locally is
+  published.
+- **Test runs.** `web/e2e/runs.json` (four runs) was recorded on 2026-10-31 from the web client in live mode against the real
+  API with the test doubles (recorded Azure responses), through an ASGI recorder in a scratch harness that is not committed. CI
+  copies it into a demo build for Playwright. Its assistant answer is the test suite's canned answer.
+- **Who is signed in** comes from `GET /api/me`, which reads the platform header like every route. Learn's Container Apps
+  authentication page (updated 2026-07-08) documents the identity headers and `/.auth/logout`, not `/.auth/me`, which in App
+  Service needs the token store. Sign-out is the platform's `/.auth/logout`.
+- **Conversations** return their user and assistant turns in `GET /api/conversations`, so the sidebar reopens one without a
+  route per conversation.
+- **The app serves the built client** from `web/dist` with Starlette's `StaticFiles` (`html=True`), mounted after every route.
+  `check_dir=False` lets the app start without a build; without one, an unmatched path answers 500 instead of 404, and a wrong
+  method on an API route answers 404 instead of 405, because the mount at `/` takes every unmatched request. Neither costs a
+  Python line to change, and the image always has the build. The image builds it in a `node:24.22.2-trixie-slim`
+  stage pinned by digest; the image was built and `web/dist` checked inside it on 2026-10-31.
+- **Polling:** each invoice card polls `GET /api/invoices/{id}` every 2 s while queued or processing, because processing may
+  run on another replica. Its status lines are the timeline's steps with seconds since upload, then "Ready for review in n s".
+  The time the review card was open goes to `review_seconds` (handling-time KPI); 👍 and 👎 post `/api/feedback`.
+- **Accessibility:** accent text on light backgrounds uses `#4552E0` (5.2:1 on the selection background; `#5764F8` gives 4.0:1
+  there and 4.2:1 on the page, below AA for 13 to 15 px text); the success green is for icons only (3.5:1 on white); error text
+  sits on white (4.7:1); inputs are bordered in `#626262` for 3:1 non-text contrast; a low-confidence field carries an icon and
+  a label, not colour alone; after a decision, focus moves to the card's new status. axe runs with `wcag2a`, `wcag2aa`,
+  `wcag21aa` and `wcag22aa` and fails on serious or critical violations.
+- **Local live run (2026-10-31):** the web client against the real API with the test doubles, driven by Playwright: batch of
+  three ready with their steps, 12 of 64 fields marked below 0.80, a due-date correction in the timeline, approval; a cited
+  answer; an exact duplicate where the clerk sees only *Send to lead*; the lead's *Approve* disabled until a reason is given;
+  export of two invoices, then 409 *No approved invoices to export*. Phase 7 repeats it in staging.
+- **Found while testing:** Chromium's `scrollIntoView` now returns a promise, which React took as an effect's clean-up and
+  crashed on; effects use braces. Headless Chromium does not render a PDF in an iframe, so headless screenshots show the
+  original's frame empty; desktop browsers render it.
+- **Dependencies:** TypeScript 7.0.2 (the native compiler) type-checks as the lint, with no ESLint; `react-markdown` renders
+  answers without raw HTML; Inter comes from `@fontsource/inter` (latin, 400 and 600) inside the bundle, so no third-party font
+  request. Each package is the latest release at least two weeks old, except Vite 8.3.5 (10 days) and React 19.3.1 (17 days);
+  `lucide-react` publishes daily and 1.59.0 is from 2026-10-17.
+- **Review:** one independent review of the phase's diff found six defects, all fixed: work started in one thread could
+  write into the next one (each thread now has a generation, and the streamed answer is replaced by identity, not position); a
+  clerk saw the review form of an invoice waiting for the lead; a failed poll stopped polling (5xx and network errors now retry
+  every 10 s and keep the card); the original had no error path and leaked its blob URL after unmount; the queue read the
+  newest 100 invoices and filtered them (it now asks the API per status, once the roles are known); and state carried over
+  between threads (the thread remounts on each). Also applied: decisions disabled while one is saving, answers render no
+  images and only in-page links, card updates refresh the sidebar once a second at most, focus returns to the thread when its
+  control disappears, the streamed answer is `aria-busy`, Enter during IME composition does not send, export is offered to
+  the lead only, and run files enter only demo builds. Not applied: a Content Security Policy needs a response header from
+  the app (Python lines) or an index-time plugin; the vectors it would close are closed in the Markdown renderer.
+- **Budget:** Python 1,315 after this phase's six lines (`/api/me`, the turns, the static mount): 85 remain for
+  `load/locustfile.py` and `ops/record.py`, whose targets add up to 90. TypeScript 710 of 799.
+
 ## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 
 | Package | Name |
@@ -307,3 +368,7 @@ suite runs on an in-memory store; the same API flows were run against the emulat
 | `agent-framework-azure-cosmos` 1.0.0b261015 (phase 4) | `CosmosHistoryProvider(container_client=)` on `/session_id`, `list_sessions()`, `get_messages(session_id)`; `CosmosCheckpointStorage(container_client=, allowed_checkpoint_types=)` |
 | `agent-framework-core` 1.23.0 (phase 4) | `Agent.run(message, stream=True, session=AgentSession(session_id=))` returns a `ResponseStream` of updates with `.text`; `ChatResponse.from_update_generator` |
 | Service Bus emulator 2.0.1 (Learn, page of 2026-08-28) | needs SQL Server 2022; configuration at `/ServiceBus_Emulator/ConfigFiles/Config.json`; `DefaultMessageTimeToLive` at most 1 hour |
+| npm packages (2026-10-31) | `react`/`react-dom` 19.3.1, `vite` 8.3.5 (`import.meta.glob(pattern, { eager: true, import: "default" })`), `@vitejs/plugin-react` 6.1.2, `typescript` 7.0.2, `react-markdown` 10.1.0, `@fontsource/inter` 5.3.0 (`latin-400.css`, `latin-600.css`), `lucide-react` 1.59.0 (every icon imported exists), `@playwright/test` 1.64.1, `@axe-core/playwright` 4.14.0 (`new AxeBuilder({ page }).withTags([...]).analyze()`) |
+| GitHub Actions (2026-10-31) | `actions/setup-node` v7.1.0 (`node-version`, `cache`, `cache-dependency-path`), `actions/upload-pages-artifact` v5.0.0 (`path`), `actions/deploy-pages` v5.0.1 (output `page_url`) |
+| `starlette` 1.10.0 (phase 5) | `StaticFiles(directory=, html=True, check_dir=False)`; an unmatched path reaches the mount and gets 404 |
+| Container Apps authentication (Learn, updated 2026-07-08) | identity headers only from the platform; `/.auth/login/aad`, `/.auth/logout`; `/.auth/me` not documented |
