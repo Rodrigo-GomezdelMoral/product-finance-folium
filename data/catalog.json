@@ -1,0 +1,132 @@
+{
+  "oil": [
+    {"es": "Aceite de oliva virgen extra 5 L", "en": "Extra virgin olive oil 5 L", "rate": 4, "price": "32.40"},
+    {"es": "Aceite de girasol 5 L", "en": "Sunflower oil 5 L", "rate": 10, "price": "9.85"}
+  ],
+  "rice": [
+    {"es": "Arroz redondo 1 kg", "en": "Round rice 1 kg", "rate": 4, "price": "1.42"},
+    {"es": "Arroz bomba 1 kg", "en": "Bomba rice 1 kg", "rate": 4, "price": "3.95"}
+  ],
+  "dairy": [
+    {"es": "Leche entera 1 L", "en": "Whole milk 1 L", "rate": 4, "price": "0.89"},
+    {"es": "Yogur natural pack 4", "en": "Plain yoghurt, pack of 4", "rate": 10, "price": "1.15"},
+    {"es": "Mantequilla 250 g", "en": "Butter 250 g", "rate": 10, "price": "2.35"}
+  ],
+  "bakery": [
+    {"es": "Pan de molde 700 g", "en": "Sliced bread 700 g", "rate": 4, "price": "1.79"},
+    {"es": "Magdalenas 1 kg", "en": "Muffins 1 kg", "rate": 10, "price": "3.60"}
+  ],
+  "eggs": [
+    {"es": "Huevos L docena", "en": "Large eggs, dozen", "rate": 4, "price": "2.45"},
+    {"es": "Huevos M bandeja 30", "en": "Medium eggs, tray of 30", "rate": 4, "price": "5.20"}
+  ],
+  "water": [
+    {"es": "Agua mineral 1,5 L pack 6", "en": "Mineral water 1.5 L, pack of 6", "rate": 10, "price": "1.98"},
+    {"es": "Agua mineral 0,5 L pack 24", "en": "Mineral water 0.5 L, pack of 24", "rate": 10, "price": "4.30"}
+  ],
+  "soft_drinks": [
+    {"es": "Refresco de cola 33 cl pack 24", "en": "Cola 33 cl, pack of 24", "rate": 21, "price": "11.40"},
+    {"es": "Gaseosa 1,5 L", "en": "Lemonade 1.5 L", "rate": 21, "price": "0.62"}
+  ],
+  "wine": [
+    {"es": "Vino tinto crianza 75 cl", "en": "Red wine crianza 75 cl", "rate": 21, "price": "5.90"},
+    {"es": "Vino blanco joven 75 cl", "en": "Young white wine 75 cl", "rate": 21, "price": "3.75"}
+  ],
+  "packaging": [
+    {"es": "Cajas de cartón 40x30x30", "en": "Cardboard boxes 40x30x30", "rate": 21, "price": "0.74"},
+    {"es": "Separadores de cartón", "en": "Cardboard dividers", "rate": 21, "price": "0.21"}
+  ],
+  "film": [
+    {"es": "Film estirable 50 cm", "en": "Stretch film 50 cm", "rate": 21, "price": "9.90"},
+    {"es": "Bolsas de plástico 30 micras", "en": "Plastic bags 30 micron", "rate": 21, "price": "0.06"}
+  ],
+  "cleaning": [
+    {"es": "Detergente industrial 20 L", "en": "Industrial detergent 20 L", "rate": 21, "price": "24.60"},
+    {"es": "Desinfectante 5 L", "en": "Disinfectant 5 L", "rate": 21, "price": "8.30"}
+  ],
+  "pallets": [
+    {"es": "Palé europeo", "en": "Euro pallet", "rate": 21, "price": "11.50"},
+    {"es": "Reparación de palés", "en": "Pallet repair", "rate": 21, "price": "3.20"}
+  ],
+  "canned": [
+    {"es": "Atún en aceite de oliva pack 3", "en": "Tuna in olive oil, pack of 3", "rate": 10, "price": "4.10"},
+    {"es": "Espárragos blancos 340 g", "en": "White asparagus 340 g", "rate": 10, "price": "3.25"}
+  ],
+  "coffee": [
+    {"es": "Café en grano 1 kg", "en": "Coffee beans 1 kg", "rate": 10, "price": "14.80"},
+    {"es": "Café molido 250 g", "en": "Ground coffee 250 g", "rate": 10, "price": "3.45"}
+  ],
+  "legumes": [
+    {"es": "Garbanzos 1 kg", "en": "Chickpeas 1 kg", "rate": 4, "price": "2.15"},
+    {"es": "Lentejas 1 kg", "en": "Lentils 1 kg", "rate": 4, "price": "1.95"}
+  ],
+  "produce": [
+    {"es": "Naranjas caja 10 kg", "en": "Oranges, 10 kg box", "rate": 4, "price": "9.50"},
+    {"es": "Patatas saco 25 kg", "en": "Potatoes, 25 kg sack", "rate": 4, "price": "14.75"}
+  ],
+  "flour": [
+    {"es": "Harina de trigo 1 kg", "en": "Wheat flour 1 kg", "rate": 4, "price": "0.78"},
+    {"es": "Sémola de trigo 1 kg", "en": "Wheat semolina 1 kg", "rate": 4, "price": "1.10"}
+  ],
+  "cheese": [
+    {"es": "Queso curado 3 kg", "en": "Cured cheese 3 kg", "rate": 4, "price": "38.90"},
+    {"es": "Queso fresco 500 g", "en": "Fresh cheese 500 g", "rate": 4, "price": "3.40"}
+  ],
+  "cured_meats": [
+    {"es": "Jamón serrano pieza", "en": "Serrano ham, whole", "rate": 10, "price": "79.00"},
+    {"es": "Chorizo sarta 250 g", "en": "Chorizo ring 250 g", "rate": 10, "price": "2.85"}
+  ],
+  "pasta": [
+    {"es": "Macarrones 500 g", "en": "Macaroni 500 g", "rate": 10, "price": "0.95"},
+    {"es": "Espaguetis 500 g", "en": "Spaghetti 500 g", "rate": 10, "price": "0.92"}
+  ],
+  "honey": [
+    {"es": "Miel de romero 1 kg", "en": "Rosemary honey 1 kg", "rate": 10, "price": "8.70"},
+    {"es": "Miel de azahar 500 g", "en": "Orange blossom honey 500 g", "rate": 10, "price": "4.90"}
+  ],
+  "juice": [
+    {"es": "Zumo de naranja 1 L", "en": "Orange juice 1 L", "rate": 10, "price": "1.65"},
+    {"es": "Néctar de melocotón 1 L", "en": "Peach nectar 1 L", "rate": 10, "price": "1.30"}
+  ],
+  "labels": [
+    {"es": "Etiquetas adhesivas rollo 1000", "en": "Adhesive labels, roll of 1000", "rate": 21, "price": "6.40"},
+    {"es": "Cinta de impresora térmica", "en": "Thermal printer ribbon", "rate": 21, "price": "12.80"}
+  ],
+  "transport": [
+    {"es": "Transporte refrigerado por palé", "en": "Refrigerated transport per pallet", "rate": 21, "price": "38.00"},
+    {"es": "Recargo de combustible", "en": "Fuel surcharge", "rate": 21, "price": "4.50"}
+  ],
+  "refrigeration": [
+    {"es": "Mantenimiento cámara frigorífica", "en": "Cold room maintenance", "rate": 21, "price": "145.00"},
+    {"es": "Recarga de gas refrigerante", "en": "Refrigerant gas refill", "rate": 21, "price": "92.00"}
+  ],
+  "electrical": [
+    {"es": "Tubo LED 120 cm", "en": "LED tube 120 cm", "rate": 21, "price": "7.80"},
+    {"es": "Cable 2,5 mm rollo 100 m", "en": "Cable 2.5 mm, 100 m roll", "rate": 21, "price": "54.00"}
+  ],
+  "uniforms": [
+    {"es": "Chaqueta térmica", "en": "Thermal jacket", "rate": 21, "price": "36.50"},
+    {"es": "Guantes de trabajo par", "en": "Work gloves, pair", "rate": 21, "price": "2.90"}
+  ],
+  "office": [
+    {"es": "Papel A4 caja 5 paquetes", "en": "A4 paper, box of 5 reams", "rate": 21, "price": "21.50"},
+    {"es": "Tóner de impresora", "en": "Printer toner", "rate": 21, "price": "64.00"}
+  ],
+  "spices": [
+    {"es": "Pimentón dulce 1 kg", "en": "Sweet paprika 1 kg", "rate": 10, "price": "11.20"},
+    {"es": "Azafrán 1 g", "en": "Saffron 1 g", "rate": 10, "price": "6.90"}
+  ],
+  "frozen": [
+    {"es": "Merluza congelada 1 kg", "en": "Frozen hake 1 kg", "rate": 10, "price": "7.40"},
+    {"es": "Guisantes congelados 2,5 kg", "en": "Frozen peas 2.5 kg", "rate": 10, "price": "5.60"}
+  ],
+  "advisory": [
+    {"es": "Asesoría fiscal y contable", "en": "Tax and accounting advisory", "rate": 21, "price": "450.00"}
+  ],
+  "design": [
+    {"es": "Diseño de etiquetas", "en": "Label design", "rate": 21, "price": "380.00"}
+  ],
+  "rent": [
+    {"es": "Alquiler de nave almacén", "en": "Warehouse rent", "rate": 21, "price": "1200.00"}
+  ]
+}
