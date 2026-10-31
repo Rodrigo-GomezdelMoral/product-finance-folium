@@ -91,7 +91,7 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2026-07-01' = {
     globalValidation: { unauthenticatedClientAction: 'RedirectToLoginPage', redirectToProvider: 'azureactivedirectory', excludedPaths: ['/healthz'] }
     identityProviders: {
       azureActiveDirectory: {
-        enabled: true, registration: { clientId: authClientId, openIdIssuer: issuer }, validation: { allowedAudiences: ['api://${authClientId}'] }
+        enabled: true, registration: { clientId: authClientId, openIdIssuer: issuer }, validation: { allowedAudiences: ['api://${authClientId}', authClientId] }
       }
     }
     httpSettings: { requireHttps: true }
