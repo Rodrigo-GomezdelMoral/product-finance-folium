@@ -8,6 +8,15 @@ All notable changes to Folium are documented in this file. The format follows
 
 ### Added
 
+- Infrastructure as code in `infra/` for staging and production: Container Apps with built-in Entra sign-in, multiple
+  revisions, an HTTP and a Service Bus queue scale rule through an identity the code cannot use; Cosmos DB serverless with
+  7-day continuous backup; Blob Storage with versioning, soft delete and lifecycle rules; Service Bus Basic with a dead-letter
+  queue; Application Insights on the shared workspace, a KPI and SLA workbook, budgets, and SLO alerts in production.
+- `deploy.yml` (one image per merge, deployed to staging by digest behind a canary label, health check, smoke test),
+  `release.yml` (verification, approval, 10 % canary watched for ten minutes, promotion or rollback) and `load-test.yml`;
+  CI builds and lints the Bicep.
+- `docs/THREAT_MODEL.md`, `docs/OPERATIONS.md`, `docs/cost.md` and ADR-003 to ADR-011.
+
 - Product specification in `docs/PRODUCT.md`: the client, requirements REQ-01 to REQ-12 with acceptance criteria, the canonical
   invoice, the ERP export layout, KPIs and SLOs.
 - The accounts payable process as-is and to-be, as BPMN 2.0 maps with SVG renders.

@@ -14,7 +14,8 @@ in-app consumer; invoices, the audit trail, checkpoints and conversations live i
 Everything is tested locally against recorded responses of the shared Azure AI services and run against the Cosmos DB, Storage
 and Service Bus emulators, and evaluated end to end against the AI services on 60 synthetic invoices. The web client runs in
 the browser against the API and, in demo mode, replays recorded runs without a backend; its keyboard-only flows and axe checks
-run in CI. The infrastructure and the deployment arrive phase by phase; the demo's recorded runs come with the release.
+run in CI. The infrastructure for staging and production is declared in Bicep, with the deployment, release and load-test
+workflows; the first deployment to staging is next, and the demo's recorded runs come with the release.
 
 ## The problem
 
