@@ -1,0 +1,97 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to redeploy to staging (rollback); empty builds the current commit
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: staging
+    env:
+      RG: ${{ vars.RESOURCE_GROUP }}
+      APP: ${{ vars.CONTAINER_APP_NAME }}
+      ACR: ${{ vars.ACR_NAME }}
+      IMAGE: product-finance-folium
+      REQUESTED_TAG: ${{ inputs.tag }}
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      ALERT_EMAIL_ADDRESS: ${{ secrets.ALERT_EMAIL_ADDRESS }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Build and push one image per merge, tagged with the date and the commit
+        if: inputs.tag == ''
+        run: |
+          tag="$(date -u +%Y%m%d)-main-${GITHUB_SHA::7}"
+          server="$(az acr show -n "$ACR" --query loginServer -o tsv)"
+          az acr login -n "$ACR" --only-show-errors
+          docker build --quiet -t "$server/$IMAGE:$tag" .
+          docker push --quiet "$server/$IMAGE:$tag"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+      - name: Use the requested tag
+        if: inputs.tag != ''
+        run: echo "TAG=$REQUESTED_TAG" >> "$GITHUB_ENV"
+      - name: Resolve the digest and the revision serving traffic
+        run: |
+          digest="$(az acr repository show -n "$ACR" --image "$IMAGE:$TAG" --query digest -o tsv)"
+          test -n "$digest"
+          stable=""
+          if az containerapp show -n "$APP" -g "$RG" -o none 2>/dev/null; then
+            stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
+            test -n "$stable"
+          fi
+          echo "IMAGE_DIGEST=$digest" >> "$GITHUB_ENV"
+          echo "STABLE_REVISION=$stable" >> "$GITHUB_ENV"
+          echo "REVISION_SUFFIX=r$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT-${TAG##*-}" >> "$GITHUB_ENV"
+      - name: What-if, then deploy the digest as a new revision at 0 % behind the canary label
+        run: |
+          az deployment group what-if -g "$RG" -p infra/main.staging.bicepparam --result-format ResourceIdOnly --only-show-errors
+          new="$(az deployment group create -g "$RG" -n "folium-r$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT" -p infra/main.staging.bicepparam \
+            --query properties.outputs.revision.value -o tsv --only-show-errors)"
+          echo "NEW=$new" >> "$GITHUB_ENV"
+      - name: Health check on the new revision
+        run: |
+          fqdn="$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+          echo "::add-mask::$fqdn"
+          echo "::add-mask::${fqdn#*.}"
+          echo "FQDN=$fqdn" >> "$GITHUB_ENV"
+          curl -fsS -o /dev/null --retry 12 --retry-delay 10 --retry-all-errors "https://$APP---canary.${fqdn#*.}/healthz"
+      - name: Send all traffic to the new revision and deactivate the previous one
+        if: env.STABLE_REVISION != ''
+        run: |
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$NEW=100" "$STABLE_REVISION=0" -o none
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$STABLE_REVISION" -o none
+      - name: Sign in again, since the federated token expires after minutes
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Smoke test through the API as the staging CI principal
+        run: |
+          token="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$token"
+          for path in /healthz /api/me /api/invoices; do
+            curl -fsS -o /dev/null -w "$path %{http_code} %{time_total} s\n" -H "Authorization: Bearer $token" "https://$FQDN$path"
+          done
