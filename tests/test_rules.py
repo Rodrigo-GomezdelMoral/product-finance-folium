@@ -8,6 +8,7 @@ import pytest
 
 from app.models import CanonicalInvoice, FindingKind, Invoice
 from app.rules import duplicates, valid_tax_id, validate
+from app.workflow import RULES
 from ops import make_invoices
 
 TODAY = date(2026, 10, 30)
@@ -91,7 +92,8 @@ def test_rules_on_the_synthetic_set(tmp_path: Path) -> None:
     assert_planted([(record, row["expected"], row["duplicate_of"]) for record, row in zip(records, rows, strict=True)])
     planted = Counter(kind for row in rows for kind in row["expected"])
     twins = {"missing_field": 2, "total_mismatch": 2, "exact_duplicate": 4, "probable_duplicate": 4}
-    assert planted == Counter({kind: 1 for kind in FindingKind} | twins) and len(rows) == 60 and len(set(digest)) == 58
+    kinds = RULES | {FindingKind.exact_duplicate, FindingKind.probable_duplicate}
+    assert planted == Counter(dict.fromkeys(kinds, 1) | twins) and len(rows) == 60 and len(set(digest)) == 58
     assert sum(bool(row["canary"]) for row in rows) == 4 and sum(bool(row["scan"]) for row in rows) == 5
     assert {row["layout"] for row in rows} == set(range(5))
 

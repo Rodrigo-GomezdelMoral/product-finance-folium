@@ -1,4 +1,5 @@
-from collections.abc import Iterable
+import unicodedata
+from collections.abc import Iterable, Mapping
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -13,6 +14,17 @@ VAT_RATES = {Decimal(rate) for rate in (21, 10, 4, 0)}
 IRPF_RATES = {Decimal(rate) for rate in (7, 15, 19)}
 MANDATORY = ("vendor_name", "vendor_tax_id", "invoice_number", "issue_date", "currency", "total")
 PROBABLE_WINDOW = timedelta(days=7)
+
+
+def squash(text: str) -> str:
+    return "".join(char for char in unicodedata.normalize("NFKD", text.casefold()) if char.isalnum())
+
+
+def match_vendor(invoice: CanonicalInvoice, vendors: Mapping[str, str]) -> str | None:
+    if invoice.vendor_tax_id in vendors:
+        return invoice.vendor_tax_id
+    key = squash(invoice.vendor_name or "")
+    return next((tax_id for tax_id, name in vendors.items() if key and squash(name) == key), None)
 
 
 def valid_tax_id(tax_id: str) -> bool:

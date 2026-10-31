@@ -79,6 +79,11 @@ python -m pip install -r requirements-dev.txt
 python -m ruff check . && python -m ruff format --check . && python -m mypy && python -m pytest -q
 ```
 
+`tests/test_live.py` runs the workflow end to end against the shared base only when `FOUNDRY_ACCOUNT_ENDPOINT`,
+`FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL` are set (the repository variables of the same names); CI never sets them. With
+`RECORD_FIXTURES=1` it rewrites `tests/fixtures/recorded.json`, which the other tests replay. Set the endpoints in the shell
+from `az`, never in a file. It costs about 0.07 € of Document Intelligence and a few cents of model and Prompt Shields calls.
+
 ## Estate checked in phase 0 (2026-10-30, names and states only)
 
 - **GitHub:** public repository with issues and projects, no wiki or discussions, three merge methods, branches kept; ruleset
@@ -146,7 +151,42 @@ python -m ruff check . && python -m ruff format --check . && python -m mypy && p
   with phase 1. Dependabot PR #2 (base image Python 3.12 to 3.15) is not for merging; `dependabot.yml` now ignores minor and
   major Python updates of the image.
 
-## Verified names (installed wheels, 2026-10-30)
+## Decisions taken in phase 2
+
+- **The workflow** (`app/workflow.py`, ADR-001): one graph per invoice, named `invoice-<id>`, built per run. A detected attack
+  skips `normalize` through a conditional edge. `review` pauses with `request_info`; its response handler records corrections,
+  re-runs the REQ-04 rules, and approves, rejects (lead with a reason) or asks the lead again. A clerk's approval of an invoice
+  with an open finding never approves it. The workflow's dependencies come in `Services` (analysis by invoice id, shield,
+  normaliser, vendor master, duplicate candidates, checkpoint storage): phase 4 wires Blob, Cosmos DB and the clients there.
+- **Resume** picks, among the invoice's checkpoints at the highest `iteration_count`, the one whose pending requests hold the
+  request id. A run writes seven checkpoints up to the review and nine once approved, two of them at the same iteration, so
+  neither the iteration count nor the timestamp alone can pick it. `CHECKPOINT_TYPES` is the allow-list that the file and
+  Cosmos DB storages need for the restricted unpickler.
+- **One agent** (ADR-002): the mapping reads every field it can, and turns a negative `TaxDetails` line into the IRPF
+  withholding. The `Normalizer` fills only empty fields and the taxable base of each tax line it read; every value must be
+  printed in the document, or it becomes a `rejected_model_value` finding. Lines labelled IBAN and IBAN-shaped strings are
+  redacted before the call. A `ChatClientException` keeps the mapping and adds `model_unavailable`. Options: `store` off,
+  reasoning effort `minimal`, `timeout` 15 s per attempt (passed through to the OpenAI SDK, which retries twice), `max_tokens`
+  1,500 for the normaliser and 800 for the assistant.
+- **Vendor matching** is deterministic, in `app/rules.py`: tax ID first, then the name without case, accents or punctuation.
+  The matched vendor's tax ID feeds the duplicate check, so an invoice with a misread or missing tax ID is still compared.
+- **Evidence:** every value read carries the confidence, page and polygon of its Document Intelligence field; the currency takes
+  the total's. Values the model filled get confidence 0, so the review card always highlights them. Currency amounts are rounded
+  to cents.
+- **The assistant** reads through a `Catalog` protocol with `find` and `get` only; its tools never return the IBAN or the
+  evidence. Phase 4 implements the catalogue on Cosmos DB and passes `CosmosHistoryProvider` on `conversations`.
+- **Tests replay recordings.** `tests/doubles.py` has a `BaseChatClient` that replays recorded answers and records what it was
+  sent, and runs the workflow in a child process that the resume test kills before the answer. The fixtures hold, per
+  invoice, the analysis (API version, model, content, pages, documents), the shield verdict, the model's answer and the model
+  version; nothing identifies the subscription.
+- **Live results (2026-10-31, eight synthetic invoices):** the mapping equals the ground truth on every field except the tax
+  bases and the 0 % VAT line of the EU invoice; with the normaliser, all six invoices it saw equal the ground truth. Prompt
+  Shields flagged both injected invoices, the Spanish one included. The live test (eight invoices, one resume and one assistant
+  question) took 87 to 89 s from this machine, Azure CLI token acquisition included; phase 7 measures REQ-11 in staging. Document Intelligence, Prompt Shields and `gpt-5-mini` answer the
+  operator's Azure CLI identity with the roles it already holds; a single `PermissionDenied` from Document Intelligence on the
+  first call that morning did not reproduce later with the same code and credential.
+
+## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 
 | Package | Name |
 |---|---|
@@ -159,3 +199,7 @@ python -m ruff check . && python -m ruff format --check . && python -m mypy && p
 | `pydantic` 2.14.2 | functional `StrEnum("Kind", "a b")` members are typed by mypy 2.4.1 and dumped as strings |
 | `reportlab` 5.1.0, `types-reportlab` 5.0.0.20261008 | `Canvas(..., invariant=True)`, fonts in `reportlab/fonts/` |
 | `pillow` 13.0.0 | `ImageFont.truetype`, `Image.Resampling.BICUBIC`; PDF save writes no dates when `creationDate=None, modDate=None` |
+| `agent-framework-core` 1.23.0 (2026-10-31) | `WorkflowBuilder.add_edge(source, target, condition=)`; `Workflow.run(checkpoint_id=, responses=)`; `WorkflowCheckpoint.iteration_count`, `.pending_request_info_events` (iteration not unique since 1.13.0); `FileCheckpointStorage(path, allowed_checkpoint_types=)`; `BaseChatClient._inner_get_response`; `chat_middleware`; `ChatClientException` wraps OpenAI errors, `APITimeoutError` included; unknown chat options such as `timeout` reach the SDK call |
+| `agent-framework-foundry` 1.15.0 (2026-10-31) | `FoundryChatClient` reads `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL`; the answer's `raw_representation.model` is `gpt-5-mini-2025-08-07` |
+| `azure-ai-documentintelligence` 1.0.2 (2026-10-31) | `begin_analyze_document(model_id, IO[bytes], locale=, content_type="application/octet-stream")`; `DocumentField.type`, `value_currency.currency_code`; `TaxDetails.Rate` is a string |
+| Prompt Shields `2024-09-01` (Learn, 2026-10-31) | `POST /contentsafety/text:shieldPrompt` through `ContentSafetyClient.send_request` with the path relative to `/contentsafety`; prompt up to 10,000 characters, up to five documents totalling 10,000; an empty `userPrompt` is accepted; trained mainly on English |
