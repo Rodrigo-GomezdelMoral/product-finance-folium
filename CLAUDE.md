@@ -40,7 +40,8 @@ Three rules govern every choice:
 
   The counts come from `python -c "from tests.test_budget import budget_counts; print(budget_counts())"`.
 - **Identity is the author's.** Roles, federated credentials, app registrations and app-role assignments go in
-  `../_scripts/product-finance-folium/<nn>-<what>.sh`; write the script and stop. Phase 7 writes `02-signin.sh`.
+  `../_scripts/product-finance-folium/<nn>-<what>.sh`; write the script and stop. Phase 3 wrote `02-required-checks.sh`, so the
+  sign-in script of phase 7 is `03-signin.sh`.
 - **Azure only in phases 7 and 8.** Before that: emulators, doubles, `bicep build`, `lint` and `what-if`. The exception is phases
   2 and 3, which call the shared base's `gpt-5-mini`, Document Intelligence and Content Safety, billed per use. Before creating
   anything that bills by the hour, state its price and how it is switched off. Staging ends every phase at zero replicas.
@@ -186,6 +187,33 @@ from `az`, never in a file. It costs about 0.07 € of Document Intelligence and
   operator's Azure CLI identity with the roles it already holds; a single `PermissionDenied` from Document Intelligence on the
   first call that morning did not reproduce later with the same code and credential.
 
+## Decisions taken in phase 3
+
+- **The dataset is committed** (`eval/datasets/`, 3.7 MB): the invoices, their hashes and the Document Intelligence cache stay
+  fixed when Pillow or reportlab change. `full.jsonl` and `smoke.jsonl` name each suite's invoices and questions;
+  `tests/test_eval.py` checks the ground truth against `make_invoices.build(2026)`.
+- **The gate** (`eval/run.py`, `eval/evaluators.py`): Document Intelligence cached by file hash in `.cache/di/`, Prompt Shields
+  and the model live, four invoices at a time with duplicates after their originals, the assistant over the run's own
+  invoices. `possible_injection` on an injected invoice is neutral for the finding metrics; shield detection is reported apart.
+  A metric passes at its threshold within its tolerance of the baseline, or, when the baseline is an explained miss below the
+  threshold, while it does not get worse. The judge's report URL is never read; an `openai.APIError` from the judge fails the
+  gate without stopping the run (`openai` and `pyyaml` are pinned in `requirements-dev.txt` because `eval/` imports them).
+- **`eval.yml`** runs on every pull request: `scope` reads the changed paths without Azure, and `evaluate` (smoke suite,
+  `AZURE_CLIENT_ID_PR`) is skipped, which reports success, unless an evaluated path changed (the specified ones plus
+  `app/extract.py`, `models.py`, `rules.py`, `data/` and the generator) or `scope` failed. `full` runs on demand from `main`
+  in the `staging` environment. A conditional `environment` expression was not verified, hence two jobs.
+  `../_scripts/product-finance-folium/02-required-checks.sh` makes `python` and `evaluate` required checks.
+- **Experiment 001** kept the normaliser and narrowed it: `normalizer_v2` and `FILLABLE` limit it to `tax_lines` and `irpf`,
+  after v1 filled `inv-043`'s missing vendor tax ID with the customer's printed NIF. The cross-check is amounts only.
+- **The assistant** (`assistant_v2`): `find_invoices` lists the finding kinds and returns each invoice's findings; citations of
+  numbers that start with `INV-` are spelled out with examples outside the dataset.
+- **Judge alignment:** `builtin.groundedness` read `[INV-…]` citations as wrong numbers (2 of 5 on correct answers); every item's
+  context now starts with one sentence stating the convention.
+- **A vacuous test found:** `tool.invoke` returns `Content` items, so `str()` of the result never held the IBAN; the test now
+  joins `item.text`.
+- **Measured (2026-10-31):** smoke 24 model calls, 0.018 € of model and judge tokens, about 75 s; full 97 calls, 0.069 €, about
+  4 minutes. The shared account also serves other sessions, so its metrics cannot attribute a run.
+
 ## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 
 | Package | Name |
@@ -202,4 +230,8 @@ from `az`, never in a file. It costs about 0.07 € of Document Intelligence and
 | `agent-framework-core` 1.23.0 (2026-10-31) | `WorkflowBuilder.add_edge(source, target, condition=)`; `Workflow.run(checkpoint_id=, responses=)`; `WorkflowCheckpoint.iteration_count`, `.pending_request_info_events` (iteration not unique since 1.13.0); `FileCheckpointStorage(path, allowed_checkpoint_types=)`; `BaseChatClient._inner_get_response`; `chat_middleware`; `ChatClientException` wraps OpenAI errors, `APITimeoutError` included; unknown chat options such as `timeout` reach the SDK call |
 | `agent-framework-foundry` 1.15.0 (2026-10-31) | `FoundryChatClient` reads `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL`; the answer's `raw_representation.model` is `gpt-5-mini-2025-08-07` |
 | `azure-ai-documentintelligence` 1.0.2 (2026-10-31) | `begin_analyze_document(model_id, IO[bytes], locale=, content_type="application/octet-stream")`; `DocumentField.type`, `value_currency.currency_code`; `TaxDetails.Rate` is a string |
+| `agent-framework-core` 1.23.0 (phase 3) | `EvalItem(conversation, context=)`, `LocalEvaluator(*checks).evaluate(items)` → `EvalResults.per_evaluator`, `.items[].scores`; `@evaluator` resolves `query`, `response` by parameter name; `InMemoryCheckpointStorage`; evaluation is `@experimental` (`EVALS`); `evaluate_agent` takes one `context` for all queries, so the gate builds its items; `FunctionTool.invoke` returns `list[Content]` |
+| `agent-framework-foundry` 1.15.0 (phase 3) | `FoundryEvals(client=, evaluators=[FoundryEvals.GROUNDEDNESS])` → `builtin.groundedness` through the OpenAI evals API; an item's score can be `None` |
+| `builtin.groundedness` (Learn, page of 2026-08-26) | GA; `response` and `context`, `query` optional; scores 1 to 5, default pass threshold 3 |
+| GitHub Actions (docs, 2026-10-31) | a skipped job reports success and does not block a required check; `azure/login` v3 only moves to Node 24; `actions/cache` v6 restore and save inputs unchanged |
 | Prompt Shields `2024-09-01` (Learn, 2026-10-31) | `POST /contentsafety/text:shieldPrompt` through `ContentSafetyClient.send_request` with the path relative to `/contentsafety`; prompt up to 10,000 characters, up to five documents totalling 10,000; an empty `userPrompt` is accepted; trained mainly on English |

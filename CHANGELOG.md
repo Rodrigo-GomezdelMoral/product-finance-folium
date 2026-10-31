@@ -34,9 +34,20 @@ All notable changes to Folium are documented in this file. The format follows
 - Responses of Document Intelligence, Prompt Shields and the model recorded from eight synthetic invoices
   (`tests/fixtures/recorded.json`), replayed by the tests, and a live end-to-end test against the shared services.
 - ADR-001 (graph workflow), ADR-002 (one agent) and ADR-012 (code-first, self-hosted agents).
+- The evaluation gate (`eval/`): the 60 synthetic invoices and their ground truth, 20 assistant questions with the invoices to
+  cite, a 15-invoice smoke suite, metrics for header fields, line items, findings, duplicates, injection effect, groundedness
+  (`FoundryEvals`) and citations, thresholds with a baseline, and `.github/workflows/eval.yml`, which runs the smoke suite on
+  pull requests that touch the agents, the prompts, the workflow or the evaluation, and the full suite on demand.
+- `docs/evaluation.md` with the results and experiment 001 on the normaliser, and `docs/RESPONSIBLE_AI.md`, the responsible AI
+  impact assessment.
 
 ### Changed
 
+- The normaliser fills only the tax lines and the IRPF withholding (`normalizer_v2`); version 1 filled a missing vendor tax ID
+  with the customer's. Its cross-check now requires every amount it proposes to be printed in the document.
+- The assistant's `find_invoices` lists the finding kinds it accepts and returns each invoice's findings, and `assistant_v2`
+  spells out how to cite invoice numbers that already start with `INV-` and invoices without a number.
+- The recorded responses in `tests/fixtures/recorded.json` come from `normalizer_v2`.
 - New finding kinds: `unknown_vendor`, `rejected_model_value`, `possible_injection` and `model_unavailable`. The withholding
   amount is always stored positive, and the IBAN without spaces.
 - Dependabot no longer proposes minor or major Python versions for the base image; the project stays on Python 3.12.
