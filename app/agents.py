@@ -1,6 +1,5 @@
 import json
 import re
-from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Annotated, Any, Protocol
@@ -10,18 +9,19 @@ from agent_framework.exceptions import ChatClientException
 
 from app.models import CanonicalInvoice, Finding, Invoice, leaves
 from app.models import FindingKind as Kind
-from app.rules import finding, squash
+from app.rules import finding
 
-PROMPTS, NORMALIZER, ASSISTANT = Path(__file__).parent / "prompts", "normalizer_v1", "assistant_v1"
+PROMPTS, NORMALIZER, ASSISTANT = Path(__file__).parent / "prompts", "normalizer_v2", "assistant_v2"
 PROMPT = {name: (PROMPTS / f"{name}.md").read_text("utf-8") for name in (NORMALIZER, ASSISTANT)}
 OPTIONS: dict[str, Any] = {"store": False, "reasoning": {"effort": "minimal"}, "timeout": 15}
-SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
+FILLABLE = {"irpf", "tax_lines"}
 IBAN = re.compile(r"(?i)\biban\b.*|\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b")
-DATES = ("%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%Y-%m-%d", "%d %b %Y", "%d/%m/%y")
 HIDDEN: dict[str, Any] = {"data": {"iban"}, "evidence": True}
 BRIEF: dict[str, Any] = {"data": {"invoice_number", "vendor_name", "issue_date", "total", "currency"}, "status": True}
+BRIEF |= {"findings": {"__all__": {"kind"}}}
 State = Annotated[str | None, "queued, processing, ready, with_lead, approved, rejected, exported or failed"]
-Text = Annotated[str | None, "part of the vendor name, or a finding kind such as probable_duplicate"]
+Vendor = Annotated[str | None, "part of the vendor name"]
+Kinds = Annotated[str | None, f"one finding kind: {', '.join(Kind)}"]
 Client = SupportsChatGetResponse[Any]
 type Merged = tuple[CanonicalInvoice, list[str], list[Finding]]
 type Normalized = tuple[CanonicalInvoice, list[str], list[Finding], dict[str, str]]
@@ -33,23 +33,15 @@ def amounts(text: str) -> set[Decimal]:
     return {Decimal(candidate) for candidate in candidates if re.fullmatch(r"\d+(?:\.\d+)?", candidate)}
 
 
-def printed(value: Any, text: str, numbers: set[Decimal]) -> bool:
-    if isinstance(value, Decimal):
-        return abs(value) in numbers
-    if isinstance(value, date):
-        return any(value.strftime(form) in text for form in DATES)
-    return SYMBOLS.get(str(value), "\0") in text or squash(str(value)) in squash(text)
-
-
 def merge(base: CanonicalInvoice, proposed: CanonicalInvoice, text: str) -> Merged:
     data, numbers, filled, rejected = base.model_dump(), amounts(text), list[str](), list[Finding]()
     bases = {(line.rate, line.amount): line.base for line in proposed.tax_lines}
     lines = [line | {"base": bases.get((line["rate"], line["amount"]))} for line in data["tax_lines"]]
-    for name, value in (proposed.model_dump(exclude={"iban"}) | ({"tax_lines": lines} if lines else {})).items():
+    for name, value in (proposed.model_dump(include=FILLABLE) | ({"tax_lines": lines} if lines else {})).items():
         if value in (None, [], data[name]) or (data[name] not in (None, []) and name != "tax_lines"):
             continue
-        if unseen := [leaf for leaf in leaves(value).values() if leaf is not None and not printed(leaf, text, numbers)]:
-            rule = "every value the model proposes is printed in the document"
+        if unseen := [leaf for leaf in leaves(value).values() if leaf is not None and abs(leaf) not in numbers]:
+            rule = "every amount the model proposes is printed in the document"
             rejected.append(finding(Kind.rejected_model_value, rule, field=name, value=unseen[0]))
         else:
             data[name], filled = value, [*filled, name]
@@ -80,7 +72,7 @@ class InvoiceTools:
     def __init__(self, catalog: Catalog) -> None:
         self.catalog = catalog
 
-    async def find_invoices(self, status: State = None, vendor: Text = None, finding: Text = None) -> str:
+    async def find_invoices(self, status: State = None, vendor: Vendor = None, finding: Kinds = None) -> str:
         """Find invoices by status, vendor or finding kind. Read-only."""
         found = await self.catalog.find(status, vendor, finding)
         return json.dumps([invoice.model_dump(mode="json", include=BRIEF) for invoice in found[:50]])
