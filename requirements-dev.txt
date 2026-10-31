@@ -6,3 +6,4 @@ pytest-asyncio==1.4.1
 locust==2.47.0
 reportlab==5.1.0
 pillow==13.0.0
+types-reportlab==5.0.0.20261008

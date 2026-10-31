@@ -218,13 +218,13 @@ Every field carries `value` (or `null`), `confidence` (0 to 1) and `source` (`pa
 | Field | Type | Normalisation |
 |---|---|---|
 | `vendor_name` | text | as printed; matched to the vendor master |
-| `vendor_tax_id` | text | upper case, no spaces or separators; NIF, CIF or EU VAT with country prefix |
+| `vendor_tax_id` | text | upper case, no spaces or separators; a Spanish NIF or CIF without the `ES` prefix, any other EU VAT number with its country prefix |
 | `invoice_number` | text | as printed, trimmed |
 | `issue_date`, `due_date` | date | ISO 8601 |
 | `currency` | text | ISO 4217, `EUR` when the document shows only `€` |
 | `subtotal`, `total` | decimal | two decimals; comma or point accepted |
 | `tax_lines[]` | rate, base, amount | rate in percent |
-| `irpf` | rate, amount | rate in percent; absent when there is no withholding |
+| `irpf` | rate, amount | rate in percent; the amount withheld, as a positive number; absent when there is no withholding |
 | `iban` | text | upper case, no spaces; never sent to the model |
 | `line_items[]` | description, quantity, unit price, amount | |
 

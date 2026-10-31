@@ -8,8 +8,8 @@ Invoice data extracted, validated and de-duplicated, with human review and ERP e
 that keys 1,500 supplier invoices a month by hand, 9 to 19 minutes each, and finds duplicates and wrong tax lines only at
 reconciliation, weeks later.
 
-**Status:** the product is specified and the repository is set up. The code arrives phase by phase; the published demo comes
-with the release.
+**Status:** the product is specified and the validation and duplicate rules are implemented and tested locally, without AI,
+against a synthetic set of 60 invoices. The rest of the code arrives phase by phase; the published demo comes with the release.
 
 ## The problem
 
@@ -40,8 +40,8 @@ As specified in [`docs/PRODUCT.md`](docs/PRODUCT.md):
 | REQ-01 | Must | Upload one invoice or a batch of up to 20 | Specified |
 | REQ-02 | Must | Extract every field with its confidence and source | Specified |
 | REQ-03 | Must | Normalise to the canonical schema and match the vendor | Specified |
-| REQ-04 | Must | Validate mandatory fields, arithmetic, tax rates, tax IDs and dates | Specified |
-| REQ-05 | Must | Detect exact and probable duplicates | Specified |
+| REQ-04 | Must | Validate mandatory fields, arithmetic, tax rates, tax IDs and dates | Rules implemented, tested locally |
+| REQ-05 | Must | Detect exact and probable duplicates | Detection implemented, tested locally; blocking pending |
 | REQ-06 | Must | Review and correct, with every correction recorded | Specified |
 | REQ-07 | Must | Export approved invoices exactly once in the ERP layout | Specified |
 | REQ-08 | Must | Full traceability per invoice | Specified |
