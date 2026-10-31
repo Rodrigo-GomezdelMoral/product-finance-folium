@@ -53,6 +53,16 @@ All notable changes to Folium are documented in this file. The format follows
   to Application Insights as custom events and never sampled out (`app/telemetry.py`).
 - `ops/erase.py` (REQ-12), `ops/seed.py`, and `ops/compose.yaml` with the Cosmos DB, Azurite and Service Bus emulators.
 
+- The web client (`web/`, React, TypeScript and Vite): the common product interface with a sidebar of invoices waiting for
+  review and past conversations, batch upload with a status line per step and the time to ready, a review card with the
+  original next to the fields, low-confidence fields marked, findings and duplicates, corrections, and the decisions each role
+  may take; the assistant's answers with numbered invoice citations; export with download links; copy and feedback on every
+  answer. The browser checks the original's SHA-256 against the stored hash and sends the time the review card was open.
+- Demo mode (`VITE_DEMO_MODE=true`): the same client replays recorded runs from `web/src/demo/runs/` without a backend,
+  under the band *Demo mode · recorded runs from the deployed system*; the `pages` workflow publishes it to GitHub Pages.
+- Keyboard-only flows and axe (WCAG 2.2 AA, no serious or critical violation) on the demo build in CI, with Playwright.
+- The container image builds the web client in a Node stage and the app serves it.
+
 ### Changed
 
 - The normaliser fills only the tax lines and the IRPF withholding (`normalizer_v2`); version 1 filled a missing vendor tax ID
@@ -63,6 +73,8 @@ All notable changes to Folium are documented in this file. The format follows
 - New finding kinds: `unknown_vendor`, `rejected_model_value`, `possible_injection` and `model_unavailable`. The withholding
   amount is always stored positive, and the IBAN without spaces.
 - Dependabot no longer proposes minor or major Python versions for the base image; the project stays on Python 3.12.
+- `GET /api/me` returns the signed-in user's name and roles, and `GET /api/conversations` returns each conversation's turns,
+  for the web client. Dependabot watches the web client's npm packages.
 
 ### Fixed
 

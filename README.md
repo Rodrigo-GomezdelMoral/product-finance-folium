@@ -9,11 +9,12 @@ that keys 1,500 supplier invoices a month by hand, 9 to 19 minutes each, and fin
 reconciliation, weeks later.
 
 **Status:** the rules, the extraction with Document Intelligence, the model that fills what it cannot read, the review
-workflow, the evaluation gate and the API are implemented. Uploads go through a Service Bus queue to an in-app consumer;
-invoices, the audit trail, checkpoints and conversations live in Cosmos DB and the originals in Blob Storage. Everything is
-tested locally against recorded responses of the shared Azure AI services and run against the Cosmos DB, Storage and Service
-Bus emulators, and evaluated end to end against the AI services on 60 synthetic invoices. The web, the infrastructure and the
-deployment arrive phase by phase; the published demo comes with the release.
+workflow, the evaluation gate, the API and the web client are implemented. Uploads go through a Service Bus queue to an
+in-app consumer; invoices, the audit trail, checkpoints and conversations live in Cosmos DB and the originals in Blob Storage.
+Everything is tested locally against recorded responses of the shared Azure AI services and run against the Cosmos DB, Storage
+and Service Bus emulators, and evaluated end to end against the AI services on 60 synthetic invoices. The web client runs in
+the browser against the API and, in demo mode, replays recorded runs without a backend; its keyboard-only flows and axe checks
+run in CI. The infrastructure and the deployment arrive phase by phase; the demo's recorded runs come with the release.
 
 ## The problem
 

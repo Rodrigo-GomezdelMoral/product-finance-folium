@@ -21,6 +21,7 @@ from azure.servicebus import ServiceBusMessage
 from azure.servicebus.aio import AutoLockRenewer
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import extract, telemetry
@@ -153,6 +154,11 @@ async def health(request: Request) -> JSONResponse:
     return JSONResponse({"status": "ok" if alive else "consumer stopped"}, 200 if alive else 503)
 
 
+@app.get("/api/me")
+async def me(user: Annotated[Principal, Depends(principal)]) -> dict[str, Any]:
+    return user.model_dump(include={"name", "roles"})
+
+
 @app.post("/api/invoices", status_code=202)
 async def upload(files: list[UploadFile], user: Clerk, rt: Rt) -> list[dict[str, Any]]:
     if len(files) > MAX_FILES or any((file.size or 0) > MAX_BYTES for file in files):
@@ -261,14 +267,18 @@ async def chat(body: Ask, user: Clerk, rt: Rt) -> StreamingResponse:
 
 
 @app.get("/api/conversations")
-async def conversations(user: Clerk, rt: Rt) -> list[dict[str, str]]:
-    history, listing = rt.history, list[dict[str, str]]()
+async def conversations(user: Clerk, rt: Rt) -> list[dict[str, Any]]:
+    history, listing = rt.history, list[dict[str, Any]]()
     for session in [item for item in await history.list_sessions() if item.startswith(owner(user))] if history else []:
         messages = await history.get_messages(session) if history else []
-        listing.append({"id": session, "title": (messages[0].text or "")[:80] if messages else ""})
+        turns = [{"role": item.role, "text": item.text} for item in messages if item.text]
+        listing.append({"id": session, "title": turns[0]["text"][:80] if turns else "", "turns": turns})
     return listing
 
 
 @app.post("/api/feedback", status_code=204)
 async def feedback(body: Feedback, user: Clerk) -> None:
     event("feedback", helpful=body.helpful, about=body.about)
+
+
+app.mount("/", StaticFiles(directory="web/dist", html=True, check_dir=False), name="web")
