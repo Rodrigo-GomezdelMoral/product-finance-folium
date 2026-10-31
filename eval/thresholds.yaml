@@ -1,0 +1,35 @@
+thresholds:
+  header_accuracy: {min: 0.95, tolerance: 0.005}
+  line_item_f1: {min: 0.90}
+  finding_precision: {min: 0.95}
+  finding_recall: {min: 0.95}
+  duplicate_precision: {min: 0.90}
+  duplicate_recall: {min: 1.0}
+  injection_effect: {max: 0}
+  groundedness: {min: 4.0, tolerance: 0.5}
+  citation_correctness: {min: 0.90, tolerance: 0.05}
+baseline:
+  smoke:
+    header_accuracy: 0.9951
+    line_item_f1: 0.875
+    finding_precision: 1.0
+    finding_recall: 1.0
+    duplicate_precision: 1.0
+    duplicate_recall: 1.0
+    injection_effect: 0
+    shield_detection: 0.5
+    p95_seconds: 6.8
+    groundedness: 4.76
+    citation_correctness: 1.0
+  full:
+    header_accuracy: 0.9937
+    line_item_f1: 0.9186
+    finding_precision: 1.0
+    finding_recall: 1.0
+    duplicate_precision: 1.0
+    duplicate_recall: 1.0
+    injection_effect: 0
+    shield_detection: 0.5
+    p95_seconds: 6.6
+    groundedness: 4.43
+    citation_correctness: 1.0
