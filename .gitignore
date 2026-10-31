@@ -220,3 +220,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 eval/results/
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
