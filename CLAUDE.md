@@ -115,6 +115,37 @@ python -m ruff check . && python -m ruff format --check . && python -m mypy && p
   draws each map with the portfolio's diagram engine and writes the BPMN 2.0 XML from the same coordinates. Both files validate
   against the OMG schema. The step times the client gave add up to 9 to 19 minutes per invoice, the figure used everywhere.
 
+## Decisions taken in phase 1
+
+- **Plain values, evidence apart.** `CanonicalInvoice` holds values only: it is what the rules check, what the export writes,
+  what the ground truth records and what the normalizer returns as `response_format` (an all-optional Pydantic model, guide 5.3).
+  Confidence and source per field arrive in phase 2 as a separate map keyed by field path, so no rule has to unwrap a value and
+  the model is never asked for a confidence it cannot know.
+- **Tax lines.** Document Intelligence's `TaxDetails` gives only `Amount` and `Rate` (invoice schema 2024-11-30, verified
+  2026-10-30), and the invoice model has no withholding field. So `TaxLine.base` is optional and `irpf` is the normalizer's to
+  fill; `tax_line_mismatch` runs only when the base is known. A tax line or line item needs its rate and amount: the phase 2
+  mapping builds one only when both are read, and otherwise leaves a `missing_field` to the rules.
+- **Duplicates are a pure function.** `duplicates(invoice, others)` decides exact and probable; phase 4's Cosmos query only
+  fetches the candidates (same hash or same vendor tax ID). The vendor is the tax ID; when phase 2 matches a vendor by name, the
+  matched vendor's tax ID must feed this comparison, or an invoice without a readable tax ID is checked by hash only.
+- **Normalisation in the model.** Tax IDs drop spaces and the separators `- . / ,` (not `+` or `*`, which old Irish VAT numbers
+  use) and a leading `ES`; every text field is trimmed. Pydantic does not validate `model_copy(update=)` or attribute assignment,
+  so phase 4 applies corrections through `model_validate`.
+- **Synthetic data.** The vendor master (40 vendors, 6 of them sole traders with IRPF, 4 in the EU, 1 billing in USD), the
+  catalogue and the page templates are data in `data/`; the vendor master was generated once with valid checksums and IBANs.
+  `ops/make_invoices.py` renders digital PDFs with reportlab (`invariant=True`) and scans with Pillow, drawn with reportlab's
+  bundled Bitstream Vera fonts, which cover every character in the data (Pillow's default font lacks the accented ones). Output
+  is byte-identical across runs and across file names, so the same-file duplicates are re-rendered, not copied. Issue dates
+  follow the sample index and a vendor never repeats within three samples, so the planted findings are the only findings for
+  any seed: checked on 3,000 seeds, and on 200 in the suite.
+- **Known limits of REQ-04 as specified,** for `RESPONSIBLE_AI.md` and the evaluation: VAT rounded per line can exceed 0.01,
+  recargo de equivalencia and 1 % or 2 % IRPF are flagged as invalid rates, discounts and suplidos break the arithmetic rules, and
+  invoice numbers that restart every year without the year can look like exact duplicates. Each becomes a finding for the lead,
+  never a silent pass.
+- **CodeQL** default setup was found `not-configured` on 2026-10-30 with Python on `main`; the enable command went to the author
+  with phase 1. Dependabot PR #2 (base image Python 3.12 to 3.15) is not for merging; `dependabot.yml` now ignores minor and
+  major Python updates of the image.
+
 ## Verified names (installed wheels, 2026-10-30)
 
 | Package | Name |
@@ -124,3 +155,7 @@ python -m ruff check . && python -m ruff format --check . && python -m mypy && p
 | `agent-framework-azure-cosmos` 1.0.0b261015 | `agent_framework_azure_cosmos.CosmosCheckpointStorage`, `CosmosHistoryProvider` (`agent_framework.azure_cosmos` does not import) |
 | `azure-ai-documentintelligence` 1.0.2 | `azure.ai.documentintelligence.aio.DocumentIntelligenceClient` |
 | `azure-ai-contentsafety` 1.0.0 | `azure.ai.contentsafety.aio.ContentSafetyClient.send_request`; no Prompt Shields method |
+| `python-stdnum` 2.2 | `stdnum.es.nif.is_valid` (DNI, NIE and CIF, with or without `ES`), `stdnum.eu.vat.is_valid` (prefixed EU VAT); typed |
+| `pydantic` 2.14.2 | functional `StrEnum("Kind", "a b")` members are typed by mypy 2.4.1 and dumped as strings |
+| `reportlab` 5.1.0, `types-reportlab` 5.0.0.20261008 | `Canvas(..., invariant=True)`, fonts in `reportlab/fonts/` |
+| `pillow` 13.0.0 | `ImageFont.truetype`, `Image.Resampling.BICUBIC`; PDF save writes no dates when `creationDate=None, modDate=None` |
