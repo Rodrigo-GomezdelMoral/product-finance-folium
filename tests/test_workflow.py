@@ -9,7 +9,7 @@ from azure.ai.documentintelligence.models import AnalyzeResult
 
 from app.agents import assistant, merge, normalize, normalizer
 from app.extract import to_invoice
-from app.models import CanonicalInvoice, Evidence, Invoice, ReviewDecision, Status, Withholding, leaves
+from app.models import CanonicalInvoice, Evidence, Finding, Invoice, ReviewDecision, Status, Withholding, leaves
 from app.models import FindingKind as Kind
 from app.rules import match_vendor
 from app.workflow import build, resume
@@ -51,11 +51,12 @@ async def test_normalizer_cross_check_rejects_invented_values() -> None:
         assert data == TRUTH[file].invoice and filled == ["tax_lines"] and not rejected, file
     base, text = mapped(IRPF)[0], RECORDED[IRPF]["analyze"]["content"]
     proposal = CanonicalInvoice.model_validate_json(RECORDED[IRPF]["answer"])
-    invented = proposal.model_copy(update={"vendor_name": "Invented Supplies, S.L.", "total": Decimal("0.01")})
+    customer = make_invoices.TEMPLATES["customer"][1]
+    invented = proposal.model_copy(update={"vendor_tax_id": customer, "total": Decimal("0.01")})
     invented.irpf = Withholding(rate=Decimal(15), amount=Decimal("999.99"))
-    data, filled, rejected = merge(base.model_copy(update={"vendor_name": None, "irpf": None}), invented, text)
-    assert data.vendor_name is None and data.irpf is None and data.total == base.total and filled == ["tax_lines"]
-    assert [item.evidence["field"] for item in rejected] == ["vendor_name", "irpf"]
+    data, filled, rejected = merge(base.model_copy(update={"vendor_tax_id": None, "irpf": None}), invented, text)
+    assert customer in text and data.vendor_tax_id is None and data.irpf is None and data.total == base.total
+    assert filled == ["tax_lines"] and [item.evidence["field"] for item in rejected] == ["irpf"]
     invented.tax_lines = [line.model_copy(update={"base": Decimal("1.23")}) for line in proposal.tax_lines]
     data, filled, rejected = merge(base, invented, text)
     assert data == base and not filled and {item.kind for item in rejected} == {Kind.rejected_model_value}
@@ -102,7 +103,7 @@ async def test_resume_from_checkpoint(tmp_path: Path) -> None:
     assert invoice.data == TRUTH[CLEAN].invoice and invoice.vendor == TRUTH[CLEAN].vendor
     assert [item.at for item in invoice.timeline] == sorted(item.at for item in invoice.timeline)
     assert invoice.timeline[2].detail["model"] == RECORDED[CLEAN]["model"] and invoice.timeline[-1].by == "clerk"
-    assert invoice.timeline[2].detail["prompt"] == "normalizer_v1" and invoice.timeline[0].detail["api"] == "2024-11-30"
+    assert invoice.timeline[2].detail["prompt"] == "normalizer_v2" and invoice.timeline[0].detail["api"] == "2024-11-30"
 
 
 async def test_clerk_cannot_approve_findings(tmp_path: Path) -> None:
@@ -132,7 +133,8 @@ async def test_model_outage_keeps_the_mapping(tmp_path: Path) -> None:
 
 
 async def test_assistant_has_no_write_tool() -> None:
-    stored = Invoice(id="a", sha256="b", data=mapped(CLEAN)[0], evidence=mapped(CLEAN)[1])
+    found = [Finding(kind=Kind.probable_duplicate, rule="same vendor and total, issued within 7 days")]
+    stored = Invoice(id="a", sha256="b", data=mapped(CLEAN)[0], evidence=mapped(CLEAN)[1], findings=found)
 
     class Catalog:
         async def find(self, status: str | None, vendor: str | None, finding: str | None) -> list[Invoice]:
@@ -144,5 +146,9 @@ async def test_assistant_has_no_write_tool() -> None:
     tools = {tool.name: tool for tool in assistant(Replay([]), Catalog()).default_options["tools"]}
     assert tools.keys() == {"find_invoices", "get_invoice"}
     for tool in tools.values():
-        output = str(await tool.invoke(arguments={"number": "x"} if tool.name == "get_invoice" else {}))
+        result = await tool.invoke(arguments={"number": "x"} if tool.name == "get_invoice" else {})
+        output = "".join(item.text or "" for item in result)
         assert stored.data.iban and stored.data.iban not in output and "polygon" not in output
+        assert "probable_duplicate" in output and all(
+            kind in json.dumps(tools["find_invoices"].parameters()) for kind in Kind
+        )

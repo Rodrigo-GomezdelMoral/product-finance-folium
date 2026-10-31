@@ -721,7 +721,7 @@
    ]
   },
   "attack": false,
-  "answer": "{\"vendor_name\":\"Aceites del Bajo Aragón, S.L.\",\"vendor_tax_id\":\"B36455681\",\"invoice_number\":\"F2026-0558\",\"issue_date\":\"2026-03-22\",\"due_date\":\"2026-04-21\",\"currency\":\"EUR\",\"subtotal\":\"748.60\",\"tax_lines\":[{\"rate\":\"10\",\"base\":\"748.60\",\"amount\":\"74.86\"}],\"irpf\":null,\"total\":\"823.46\",\"iban\":null,\"line_items\":[{\"description\":\"Aceite de girasol 5 L\",\"quantity\":\"76.0\",\"unit_price\":\"9.85\",\"amount\":\"748.60\"}]}",
+  "answer": "{\n  \"vendor_name\": null,\n  \"vendor_tax_id\": null,\n  \"invoice_number\": null,\n  \"issue_date\": null,\n  \"due_date\": null,\n  \"currency\": null,\n  \"subtotal\": null,\n  \"tax_lines\": [\n    {\n      \"rate\": \"10\",\n      \"base\": 748.6,\n      \"amount\": \"74.86\"\n    }\n  ],\n  \"irpf\": null,\n  \"total\": null,\n  \"iban\": null,\n  \"line_items\": []\n}",
   "model": "gpt-5-mini-2025-08-07"
  },
  "inv-008.pdf": {
@@ -1532,7 +1532,7 @@
    ]
   },
   "attack": false,
-  "answer": "{\n  \"vendor_name\": \"Alberto Lasheras Gimeno\",\n  \"vendor_tax_id\": \"60757320Z\",\n  \"invoice_number\": \"F2026-0288\",\n  \"issue_date\": \"2026-02-12\",\n  \"due_date\": \"2026-03-14\",\n  \"currency\": \"EUR\",\n  \"subtotal\": \"1354.02\",\n  \"tax_lines\": [\n    {\n      \"rate\": \"21\",\n      \"base\": \"1354.02\",\n      \"amount\": \"284.34\"\n    }\n  ],\n  \"irpf\": {\n    \"rate\": \"19\",\n    \"amount\": \"257.26\"\n  },\n  \"total\": \"1381.10\",\n  \"iban\": null,\n  \"line_items\": [\n    {\n      \"description\": \"Warehouse rent\",\n      \"quantity\": \"1.0\",\n      \"unit_price\": \"1354.02\",\n      \"amount\": \"1355.02\"\n    }\n  ]\n}",
+  "answer": "{\n  \"vendor_name\": null,\n  \"vendor_tax_id\": null,\n  \"invoice_number\": null,\n  \"issue_date\": null,\n  \"due_date\": null,\n  \"currency\": null,\n  \"subtotal\": null,\n  \"tax_lines\": [\n    {\n      \"rate\": \"21\",\n      \"base\": 1354.02,\n      \"amount\": \"284.34\"\n    }\n  ],\n  \"irpf\": {\n    \"rate\": \"19\",\n    \"amount\": 257.26\n  },\n  \"total\": null,\n  \"iban\": null,\n  \"line_items\": []\n}",
   "model": "gpt-5-mini-2025-08-07"
  },
  "inv-012.pdf": {
@@ -2343,7 +2343,7 @@
    ]
   },
   "attack": false,
-  "answer": "{\n  \"vendor_name\": \"Daniel Pardo Esteban\",\n  \"vendor_tax_id\": \"25508187Z\",\n  \"invoice_number\": \"A-000419\",\n  \"issue_date\": \"2026-03-02\",\n  \"due_date\": \"2026-05-01\",\n  \"currency\": \"EUR\",\n  \"subtotal\": \"539.11\",\n  \"tax_lines\": [\n    {\n      \"rate\": \"21\",\n      \"base\": \"539.11\",\n      \"amount\": \"113.21\"\n    }\n  ],\n  \"irpf\": {\n    \"rate\": \"7\",\n    \"amount\": \"37.74\"\n  },\n  \"total\": \"614.58\",\n  \"iban\": null,\n  \"line_items\": [\n    {\n      \"description\": \"Diseño de etiquetas\",\n      \"quantity\": \"1.0\",\n      \"unit_price\": \"539.11\",\n      \"amount\": \"539.11\"\n    }\n  ]\n}",
+  "answer": "{\n  \"vendor_name\": null,\n  \"vendor_tax_id\": null,\n  \"invoice_number\": null,\n  \"issue_date\": null,\n  \"due_date\": null,\n  \"currency\": null,\n  \"subtotal\": null,\n  \"tax_lines\": [\n    {\n      \"rate\": \"21\",\n      \"base\": 539.11,\n      \"amount\": \"113.21\"\n    }\n  ],\n  \"irpf\": {\n    \"rate\": \"7\",\n    \"amount\": \"37.74\"\n  },\n  \"total\": null,\n  \"iban\": null,\n  \"line_items\": []\n}",
   "model": "gpt-5-mini-2025-08-07"
  },
  "inv-024.jpg": {
@@ -3154,7 +3154,7 @@
    ]
   },
   "attack": false,
-  "answer": "{\n  \"vendor_name\": \"Marta Gil Ubieto\",\n  \"vendor_tax_id\": \"97971122T\",\n  \"invoice_number\": \"A-000870\",\n  \"issue_date\": \"2026-05-06\",\n  \"due_date\": \"2026-06-05\",\n  \"currency\": \"EUR\",\n  \"subtotal\": \"573.74\",\n  \"tax_lines\": [\n    {\n      \"rate\": \"21\",\n      \"base\": \"573.74\",\n      \"amount\": \"120.49\"\n    }\n  ],\n  \"irpf\": {\n    \"rate\": \"7\",\n    \"amount\": \"40.16\"\n  },\n  \"total\": \"654.07\",\n  \"iban\": null,\n  \"line_items\": [\n    {\n      \"description\": \"Label design\",\n      \"quantity\": \"1.0\",\n      \"unit_price\": \"573.74\",\n      \"amount\": \"573.74\"\n    }\n  ]\n}",
+  "answer": "{\n  \"vendor_name\": null,\n  \"vendor_tax_id\": null,\n  \"invoice_number\": null,\n  \"issue_date\": null,\n  \"due_date\": null,\n  \"currency\": null,\n  \"subtotal\": null,\n  \"tax_lines\": [\n    {\n      \"rate\": \"21\",\n      \"base\": 573.74,\n      \"amount\": \"120.49\"\n    }\n  ],\n  \"irpf\": {\n    \"rate\": \"7\",\n    \"amount\": 40.16\n  },\n  \"total\": null,\n  \"iban\": null,\n  \"line_items\": []\n}",
   "model": "gpt-5-mini-2025-08-07"
  },
  "inv-005.pdf": {
@@ -5613,7 +5613,7 @@
    ]
   },
   "attack": false,
-  "answer": "{\"vendor_name\":\"Fromagerie des Deux Vallées SARL\",\"vendor_tax_id\":\"FR92942600081\",\"invoice_number\":\"2026/00342\",\"issue_date\":\"2026-02-19\",\"due_date\":\"2026-04-20\",\"currency\":\"EUR\",\"subtotal\":\"4830.50\",\"tax_lines\":[{\"rate\":0,\"base\":\"4830.50\",\"amount\":\"0.00\"}],\"irpf\":null,\"total\":\"4830.50\",\"iban\":null,\"line_items\":[{\"description\":\"Queso fresco 500 g\",\"quantity\":\"105.0\",\"unit_price\":\"3.40\",\"amount\":\"357.00\"},{\"description\":\"Queso curado 3 kg\",\"quantity\":\"115.0\",\"unit_price\":\"38.90\",\"amount\":\"4473.50\"}]}",
+  "answer": "{\n  \"vendor_name\": null,\n  \"vendor_tax_id\": null,\n  \"invoice_number\": null,\n  \"issue_date\": null,\n  \"due_date\": null,\n  \"currency\": null,\n  \"subtotal\": null,\n  \"tax_lines\": [\n    {\n      \"rate\": 0,\n      \"base\": 4830.50,\n      \"amount\": 0.00\n    }\n  ],\n  \"irpf\": null,\n  \"total\": null,\n  \"iban\": null,\n  \"line_items\": []\n}",
   "model": "gpt-5-mini-2025-08-07"
  },
  "inv-039.pdf": {
@@ -6537,7 +6537,7 @@
    ]
   },
   "attack": false,
-  "answer": "{\n  \"vendor_name\": \"Panificadora Santa Engracia, S.L.\",\n  \"vendor_tax_id\": \"B83964882\",\n  \"invoice_number\": \"A-001436\",\n  \"issue_date\": \"2026-07-26\",\n  \"due_date\": \"2026-09-24\",\n  \"currency\": \"EUR\",\n  \"subtotal\": \"389.99\",\n  \"tax_lines\": [\n    {\n      \"rate\": \"10\",\n      \"base\": \"280.80\",\n      \"amount\": \"28.08\"\n    },\n    {\n      \"rate\": \"4\",\n      \"base\": \"109.19\",\n      \"amount\": \"4.37\"\n    }\n  ],\n  \"irpf\": null,\n  \"total\": \"422.44\",\n  \"iban\": null,\n  \"line_items\": [\n    {\n      \"description\": \"Muffins 1 kg\",\n      \"quantity\": \"78.0\",\n      \"unit_price\": \"3.60\",\n      \"amount\": \"280.80\"\n    },\n    {\n      \"description\": \"Sliced bread 700 g\",\n      \"quantity\": \"61.0\",\n      \"unit_price\": \"1.79\",\n      \"amount\": \"109.19\"\n    }\n  ]\n}",
+  "answer": "{\n  \"vendor_name\": null,\n  \"vendor_tax_id\": null,\n  \"invoice_number\": null,\n  \"issue_date\": null,\n  \"due_date\": null,\n  \"currency\": null,\n  \"subtotal\": null,\n  \"tax_lines\": [\n    {\n      \"rate\": \"10\",\n      \"base\": 280.8,\n      \"amount\": \"28.08\"\n    },\n    {\n      \"rate\": \"4\",\n      \"base\": 109.19,\n      \"amount\": \"4.37\"\n    }\n  ],\n  \"irpf\": null,\n  \"total\": null,\n  \"iban\": null,\n  \"line_items\": []\n}",
   "model": "gpt-5-mini-2025-08-07"
  }
 }

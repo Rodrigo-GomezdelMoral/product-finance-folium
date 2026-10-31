@@ -1,6 +1,6 @@
 # ADR-002 · One agent, only where a function cannot do the job
 
-**Status:** accepted · **Date:** 2026-10-31
+**Status:** accepted, scope narrowed by experiment 001 · **Date:** 2026-10-31
 
 ## Context
 
@@ -25,14 +25,17 @@ Option 3, in `app/agents.py`:
 
 - `Normalizer` is an `Agent` on `gpt-5-mini` with `response_format=CanonicalInvoice`, `max_tokens` 1,500, `store` off,
   reasoning effort `minimal` and a 15-second timeout per attempt. It has no tools. Its instructions are
-  `app/prompts/normalizer_v1.md`, and the version is written to the invoice's timeline with the model version that answered.
+  `app/prompts/normalizer_v2.md` (`normalizer_v1.md` is kept as the measured predecessor), and the version is written to the
+  invoice's timeline with the model version that answered.
 - **The mapping, not the model, reads the withholding:** `app/extract.py` turns a `TaxDetails` line with a negative amount into
   `irpf`. In the first recording the model, asked to fix the tax lines, kept the withholding among the VAT lines of one invoice.
-- The model **fills** only fields the mapping left empty, and the taxable **base** of each tax line the mapping read, matched
-  by rate and amount. It never replaces a value the mapping read.
-- **Cross-check:** every value it proposes must be printed in the document text that Document Intelligence read: amounts
-  under either decimal convention, dates in the common printed forms, text ignoring case, accents and punctuation. A value that
-  is not printed is rejected and becomes a `rejected_model_value` finding, so the invoice goes to the lead.
+- The model fills **only the tax lines and the IRPF withholding** (`FILLABLE`): the taxable base of each tax line the mapping
+  read, matched by rate and amount; the tax lines when the mapping read none; the withholding when the mapping did not read it.
+  Whatever else it returns is ignored, and it never replaces a value the mapping read. Version 1 filled any empty field; the
+  evaluation showed it filling a missing vendor tax ID with the customer's, printed on the same page.
+- **Cross-check:** every amount it proposes must be printed in the document text that Document Intelligence read, under either
+  decimal convention. An amount that is not printed is rejected and becomes a `rejected_model_value` finding, so the invoice goes
+  to the lead.
 - **The IBAN never reaches the model:** every line labelled IBAN and every IBAN-shaped string is replaced before the call,
   and `iban` is excluded from the mapped fields it receives and from what it may return.
 - Fields it filled get confidence 0, so the review card always highlights them.
@@ -53,7 +56,7 @@ Measured on 2026-10-31 against the shared base:
 ## Consequences
 
 - The model cannot introduce a value that is not in the document, and cannot change a value the extraction read.
-- A prompt injected in an invoice can at most fill empty fields and tax bases with values printed in it, and a detected attack
-  skips the model.
-- Phase 3 measures field accuracy with and without the normaliser (`docs/evaluation.md`). If it does not improve accuracy, it is
-  removed: the graph keeps its `normalize` step, which then passes the mapping through.
+- A prompt injected in an invoice can at most fill empty tax lines and the withholding with amounts printed in it, and a
+  detected attack skips the model.
+- Measured in experiment 001 (`docs/evaluation.md`, 60 invoices, 2026-10-31): without the normaliser, header accuracy is 0.9018
+  and finding precision and recall 0.59 and 0.83; with `normalizer_v2`, 0.9937 and 1.00 and 1.00. The agent stays.

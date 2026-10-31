@@ -8,10 +8,11 @@ Invoice data extracted, validated and de-duplicated, with human review and ERP e
 that keys 1,500 supplier invoices a month by hand, 9 to 19 minutes each, and finds duplicates and wrong tax lines only at
 reconciliation, weeks later.
 
-**Status:** the rules, the extraction with Document Intelligence, the model that fills what it cannot read and the review
-workflow are implemented. They are tested locally against responses recorded from the shared Azure AI services, and the workflow
-has run end to end against those services. The API, the web, the infrastructure and the deployment arrive phase by phase; the
-published demo comes with the release.
+**Status:** the rules, the extraction with Document Intelligence, the model that fills what it cannot read, the review
+workflow and the evaluation gate are implemented. They are tested locally against responses recorded from the shared Azure AI
+services, and evaluated end to end against those services on 60 synthetic invoices: every gate passes, and no injected
+instruction changes anything. The API, the web, the infrastructure and the deployment arrive phase by phase; the published demo
+comes with the release.
 
 ## The problem
 
@@ -40,18 +41,18 @@ As specified in [`docs/PRODUCT.md`](docs/PRODUCT.md):
 | ID | Priority | Requirement | Status |
 |---|---|---|---|
 | REQ-01 | Must | Upload one invoice or a batch of up to 20 | Specified |
-| REQ-02 | Must | Extract every field with its confidence and source | Implemented, tested on recorded responses, run live |
-| REQ-03 | Must | Normalise to the canonical schema and match the vendor | Implemented, tested on recorded responses, run live |
-| REQ-04 | Must | Validate mandatory fields, arithmetic, tax rates, tax IDs and dates | Implemented, tested locally; the API's refusal pending |
-| REQ-05 | Must | Detect exact and probable duplicates | Detection implemented, tested locally; blocking pending |
+| REQ-02 | Must | Extract every field with its confidence and source | Implemented, tested on recorded responses, evaluated live |
+| REQ-03 | Must | Normalise to the canonical schema and match the vendor | Implemented, tested on recorded responses, evaluated live |
+| REQ-04 | Must | Validate mandatory fields, arithmetic, tax rates, tax IDs and dates | Implemented, evaluated live; the API's refusal pending |
+| REQ-05 | Must | Detect exact and probable duplicates | Detection implemented, evaluated live; blocking pending |
 | REQ-06 | Must | Review and correct, with every correction recorded | Recorded by the workflow, tested locally; review card pending |
 | REQ-07 | Must | Export approved invoices exactly once in the ERP layout | Specified |
 | REQ-08 | Must | Full traceability per invoice | Workflow timeline and checkpoints tested; storage and API pending |
 | REQ-10 | Must · SLA | 99.5 % availability in business hours | Specified |
 | REQ-11 | Must · SLA | 95 % of standard invoices ready for review in under 30 s | Specified |
 
-The two Should requirements are a read-only assistant (REQ-09), whose agent and read-only tools are implemented and tested, and
-erasure on request (REQ-12). Every acceptance criterion is in [`docs/PRODUCT.md`](docs/PRODUCT.md).
+The two Should requirements are a read-only assistant (REQ-09), whose agent and read-only tools are implemented, tested and
+evaluated on twenty questions with citations, and erasure on request (REQ-12). Every acceptance criterion is in [`docs/PRODUCT.md`](docs/PRODUCT.md).
 
 ## KPIs
 
@@ -68,6 +69,9 @@ They are measured from events in Application Insights once Folium runs in stagin
 
 - [`docs/PRODUCT.md`](docs/PRODUCT.md): client, process as-is and to-be, requirements with acceptance criteria, KPIs, SLOs and
   the ERP export layout.
+- [`docs/evaluation.md`](docs/evaluation.md): the evaluation gate, its datasets and results, and experiment 001 on the single
+  agent.
+- [`docs/RESPONSIBLE_AI.md`](docs/RESPONSIBLE_AI.md): the responsible AI impact assessment.
 - [`docs/adr/`](docs/adr/): the architecture decisions, starting with the graph workflow, the single agent and code-first,
   self-hosted agents.
 - [`CHANGELOG.md`](CHANGELOG.md).
