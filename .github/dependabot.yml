@@ -11,6 +11,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  - package-ecosystem: docker-compose
+    directory: /ops
+    schedule:
+      interval: weekly
   - package-ecosystem: docker
     directory: /
     schedule:

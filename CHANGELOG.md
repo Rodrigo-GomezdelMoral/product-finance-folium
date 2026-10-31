@@ -41,6 +41,18 @@ All notable changes to Folium are documented in this file. The format follows
 - `docs/evaluation.md` with the results and experiment 001 on the normaliser, and `docs/RESPONSIBLE_AI.md`, the responsible AI
   impact assessment.
 
+- The API (`app/main.py`): batch upload with type, size and exact-duplicate checks; invoice list, detail with the timeline, and
+  the original streamed through the API; review with corrections; exports in the ERP layout, exactly once per
+  `Idempotency-Key`; the streamed assistant with its conversations; feedback; and a health probe. The principal and the
+  `Invoice.Process` and `Invoice.Approve` roles come from the platform's sign-in header.
+- Storage on Cosmos DB and Blob Storage (`app/store.py`): create-only originals with their hash, ETag on every update, a
+  create-only audit trail, duplicate candidates that wait for earlier uploads still in flight, and the export files.
+- The queue consumer (`app/worker.py`): claim check through Service Bus, idempotent on the invoice's status and ETag, retries
+  by abandoning, and a failed status with the message dead-lettered after the fifth delivery.
+- KPI events (`invoice_uploaded`, `invoice_ready`, `field_corrected`, `invoice_approved`, `invoice_exported`, `feedback`) sent
+  to Application Insights as custom events and never sampled out (`app/telemetry.py`).
+- `ops/erase.py` (REQ-12), `ops/seed.py`, and `ops/compose.yaml` with the Cosmos DB, Azurite and Service Bus emulators.
+
 ### Changed
 
 - The normaliser fills only the tax lines and the IRPF withholding (`normalizer_v2`); version 1 filled a missing vendor tax ID
@@ -51,5 +63,12 @@ All notable changes to Folium are documented in this file. The format follows
 - New finding kinds: `unknown_vendor`, `rejected_model_value`, `possible_injection` and `model_unavailable`. The withholding
   amount is always stored positive, and the IBAN without spaces.
 - Dependabot no longer proposes minor or major Python versions for the base image; the project stays on Python 3.12.
+
+### Fixed
+
+- Checkpoints of invoices read back from Cosmos DB failed to load, because their dates carry pydantic's time zone
+  type; the checkpoint allow-list now includes it.
+- A review could not resume when the save after an earlier resume had failed; resume now takes the latest checkpoint that
+  holds the stored request.
 
 [Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/commits/main

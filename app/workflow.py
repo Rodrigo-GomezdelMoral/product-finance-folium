@@ -17,6 +17,7 @@ from agent_framework import (
 )
 from azure.ai.documentintelligence.models import AnalyzeResult
 from pydantic import BaseModel
+from pydantic_core import TzInfo
 
 from app.agents import normalize
 from app.extract import to_invoice
@@ -58,7 +59,7 @@ class Services:
 
 
 MODELS = (Draft, Invoice, CanonicalInvoice, TaxLine, Withholding, LineItem, Finding, Kind, Status, Evidence, Step)
-CHECKPOINT_TYPES = [f"{kind.__module__}:{kind.__qualname__}" for kind in (*MODELS, ReviewRequest, ReviewDecision)]
+CHECKPOINT_TYPES = [f"{k.__module__}:{k.__qualname__}" for k in (*MODELS, ReviewRequest, ReviewDecision, TzInfo)]
 
 
 def today() -> date:
@@ -175,10 +176,8 @@ async def resume(
     invoice_id: str, request_id: str, decision: ReviewDecision, services: Services
 ) -> WorkflowRunResult | None:
     checkpoints = await services.checkpoints.list_checkpoints(workflow_name=f"invoice-{invoice_id}")
-    top = max((checkpoint.iteration_count for checkpoint in checkpoints), default=0)
-    pending = [c for c in checkpoints if c.iteration_count == top and request_id in c.pending_request_info_events]
+    pending = [checkpoint for checkpoint in checkpoints if request_id in checkpoint.pending_request_info_events]
     if not pending:
         return None
-    return await build(invoice_id, services).run(
-        checkpoint_id=pending[0].checkpoint_id, responses={request_id: decision}
-    )
+    latest = max(pending, key=lambda checkpoint: checkpoint.iteration_count).checkpoint_id
+    return await build(invoice_id, services).run(checkpoint_id=latest, responses={request_id: decision})

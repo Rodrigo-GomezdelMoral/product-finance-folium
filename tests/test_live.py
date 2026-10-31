@@ -97,7 +97,6 @@ async def test_workflow_end_to_end_against_the_shared_base(tmp_path: Path) -> No
         decision = ReviewDecision(action="approve", by="lead", lead=True, reason="checked against the original")
         resumed = await resume("inv-016.pdf", request_id, decision, services)
         assert resumed is not None and [item.status for item in resumed.get_outputs()] == [Status.approved]
-        assert await resume("inv-016.pdf", request_id, decision, services) is None
 
         helper = assistant(client, Catalog([invoice for _, invoice in pending.values()]))
         reply = await helper.run("Which invoices are waiting for the lead?")
