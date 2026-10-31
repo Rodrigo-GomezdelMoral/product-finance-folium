@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import extract, telemetry
+from app import doubles, extract, telemetry
 from app.agents import BRIEF, assistant, normalizer
 from app.config import clients, settings
 from app.models import CanonicalInvoice, Invoice, ReviewDecision, Status
@@ -79,7 +79,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         saved = CosmosCheckpointStorage(container_client=box("checkpoints"), allowed_checkpoint_types=CHECKPOINT_TYPES)
         shield, vendors = partial(extract.attacked, safety), await store.vendors()
-        workflow = Services(analyze, shield, normalizer(chat), vendors, partial(candidates, store), saved)
+        load = config.environment == "staging" and config.doubles == "load"
+        reader, model = doubles.reader(vendors) if load else analyze, doubles.Model() if load else chat
+        workflow = Services(reader, shield, normalizer(model), vendors, partial(candidates, store), saved)
         history = CosmosHistoryProvider(container_client=box("conversations"))
         queue = await stack.enter_async_context(azure.bus.get_queue_sender(config.queue))
 

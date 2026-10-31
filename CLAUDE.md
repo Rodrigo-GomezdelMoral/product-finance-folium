@@ -31,7 +31,7 @@ Three rules govern every choice:
 
   ```
   ── PHASE n COMPLETE ──
-  Files: <n>/90   Python: <n>/1400   Tests: <n>/700   Bicep: <n>/490   TS: <n>/800   Comments: <n>/5
+  Files: <n>/90   Python: <n>/1450   Tests: <n>/700   Bicep: <n>/490   TS: <n>/800   Comments: <n>/5
   Verified: ruff ✓  mypy ✓  pytest ✓  budget ✓  <phase checks>
   Requirements: REQ-xx <test> <live evidence or "local only"> · ...
   Guidance: <syllabus sections> · <Well-Architected codes>
@@ -56,8 +56,9 @@ Three rules govern every choice:
    recorded runs, commits or docs. Resource names are fine. `tests/test_budget.py` scans every file and reports only the file and
    the kind of identifier, never the value.
 2. **Zero secrets.** Managed identities and `DefaultAzureCredential`; local authentication disabled on every service that allows it.
-3. **Budgets, enforced by `tests/test_budget.py`** (non-empty lines): Python in `app/ eval/ load/ ops/` at most 1,400; tests at
-   most 700; Bicep at most 490; TypeScript under 800; files at most 90, excluding `docs/`, `data/`, `eval/datasets/`,
+3. **Budgets, enforced by `tests/test_budget.py`** (non-empty lines): Python in `app/ eval/ load/ ops/` at most 1,450 (the
+   build prompt's 1,400, raised by the author on 2026-10-31 for `load/locustfile.py`, `ops/record.py` and the load doubles); tests
+   at most 700; Bicep at most 490; TypeScript under 800; files at most 90, excluding `docs/`, `data/`, `eval/datasets/`,
    `web/node_modules/`, `web/src/demo/runs/` and lock files.
 4. **Comments:** at most 5 `#` comments in the whole codebase: Python, YAML, TOML, requirements, shell, `Dockerfile` and
    `Makefile`. The only exempt `#` is the version tag after a SHA-pinned action, which Dependabot maintains. The why lives in
@@ -393,6 +394,42 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
 - **A test defect fixed:** the pin check read `statuses:` as `uses:`; it now matches `uses:` as a word, on the same line.
 - **Not run in this phase:** `what-if` for both environments needs an interactive `az login` (the stored token expired and the
   tenant's security defaults require MFA). `bicep build`, `build-params` and `lint` are clean.
+
+## Decisions taken in phase 7
+
+- **Two publishes from `feature/staging`.** `load-test.yml` runs from `main` and redeploys the staging digest with
+  `DOUBLES=load`, so the Locust file and the doubles must be in an image built from `main` before any load test. The first
+  publish carries that code and the sign-in fixes; its merge is also the first deployment. The second carries the measured
+  results.
+- **Budget:** the author raised the Python total from 1,400 to 1,450 on 2026-10-31 for `load/locustfile.py` (45), `ops/record.py`
+  (45) and the doubles.
+- **The load doubles** (`app/doubles.py`, honoured only when `ENVIRONMENT=staging` and `DOUBLES=load`) replace Document
+  Intelligence and the normaliser's model; Prompt Shields, Cosmos DB, Blob Storage and Service Bus stay real. The analysis is
+  one recorded invoice (`app/doubles.json`, from `tests/fixtures/recorded.json`) whose vendor is drawn from the vendor master
+  by the invoice id, whose issue date moves back by a multiple of 8 days drawn the same way, and whose number is the invoice
+  id, so load invoices are neither exact nor probable duplicates of each other. They still wait, like every upload, for any
+  earlier upload of the last five minutes that is queued or processing (phase 4's duplicate check). The vendor master must be
+  seeded before a load test: `vendors` is read once per replica, and an empty one fails every doubled invoice. Latencies: Document Intelligence 7.5 s (7.4 to 9.6 s for one page, three calls from the operator's machine on
+  2026-10-31), the model 4.0 s (the evaluation's p95 with the normaliser, 4.6 to 6.6 s, less 1.5 s without it). The model
+  name in the timeline is `load-double`. A local run of the workflow on the doubles took 11.6 s per invoice.
+- **`load/locustfile.py`:** one user class uploads one invoice (normal, soak, stress) or a 20-file batch (peak, real) and
+  polls each invoice every 2 s; the time from upload to a status past `processing` is a Locust entry `READY invoice`, failed
+  when the status is `failed`. A load shape per scenario sets users, spawn rate and length; stress ramps 10 users a minute,
+  each uploading once a minute, and stops when the current p95 of `READY` passes 30 s or errors pass 1 % after 100 requests.
+  Load invoices are unique bytes behind the PDF magic; the real scenario sends the first 20 dataset PDFs with a unique
+  trailing comment. Checked against a local fake API: 20 of 20 ready in the real shape, stress stopping at its threshold.
+- **Sign-in** (`04-signin.sh`): `folium-<env>` with ID tokens, `api://<client id>`, access tokens version 2 (their issuer
+  matches the platform's `/v2.0` issuer; their audience is the client id, which `allowedAudiences` now lists next to
+  `api://<client id>`), `Invoice.Process` for users and applications, `Invoice.Approve` for users, assignment required, the
+  staging CI principal as a clerk, the author as a lead in both environments, a `user_impersonation` scope pre-authorized for
+  Azure CLI so the operator can call the API with `az account get-access-token`, and the environment variables. A second run
+  after the first deployment adds the sign-in redirect URI and the operator's data roles in staging (Cosmos DB Built-in Data
+  Contributor, Storage Blob Data Contributor) for the vendor seed, the erasure run and the restore drill.
+- **Review before the first publish:** one independent review found no blocking defect. Applied: probable duplicates among
+  load invoices (the issue-date spread above), a poll that raised on a non-JSON body and lost its batch's measurements, the
+  stress stop read from every request (now uploads and `READY` only), an empty `SOAK_MINUTES`, and ID tokens set again with
+  the redirect URI. Open risk, to be measured: with 0 to 2 replicas of 4 consumers and about 12 s per doubled invoice, the last
+  invoices of a 20-file peak batch can pass 30 s and take the combined p95 over the SLA; ADR-011's fallbacks then apply.
 
 ## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 

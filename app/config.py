@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 class Settings(BaseModel):
     environment: str = "local"
+    doubles: str = ""
     cosmos_endpoint: str
     cosmos_key: str | None = None
     storage: str
