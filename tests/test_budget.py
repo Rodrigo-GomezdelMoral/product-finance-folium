@@ -109,7 +109,7 @@ def test_supply_chain_is_pinned() -> None:
             assert not pin.startswith("agent-framework=="), "the agent-framework metapackage is not allowed"
     for workflow in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
         for line in workflow.read_text(encoding="utf-8").splitlines():
-            if "uses:" in line and "uses: ./" not in line:
+            if re.search(r"\buses:", line) and "uses: ./" not in line:
                 assert ACTION_PIN.search(line), f"{workflow.name}: {line.strip()} is not pinned to a commit SHA"
     images = [line for line in read("Dockerfile").splitlines() if line.startswith("FROM ")]
     assert images and all("@sha256:" in line for line in images), "base images must be pinned by digest"

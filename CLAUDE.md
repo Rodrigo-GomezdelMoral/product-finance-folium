@@ -40,8 +40,8 @@ Three rules govern every choice:
 
   The counts come from `python -c "from tests.test_budget import budget_counts; print(budget_counts())"`.
 - **Identity is the author's.** Roles, federated credentials, app registrations and app-role assignments go in
-  `../_scripts/product-finance-folium/<nn>-<what>.sh`; write the script and stop. Phase 3 wrote `02-required-checks.sh`, so the
-  sign-in script of phase 7 is `03-signin.sh`.
+  `../_scripts/product-finance-folium/<nn>-<what>.sh`; write the script and stop. Phase 3 wrote `02-required-checks.sh` and phase 6
+  `03-shared-deployments.sh`, so the sign-in script of phase 7 is `04-signin.sh`.
 - **Azure only in phases 7 and 8.** Before that: emulators, doubles, `bicep build`, `lint` and `what-if`. The exception is phases
   2 and 3, which call the shared base's `gpt-5-mini`, Document Intelligence and Content Safety, billed per use. Before creating
   anything that bills by the hour, state its price and how it is switched off. Staging ends every phase at zero replicas.
@@ -341,6 +341,59 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
 - **Budget:** Python 1,315 after this phase's six lines (`/api/me`, the turns, the static mount): 85 remain for
   `load/locustfile.py` and `ops/record.py`, whose targets add up to 90. TypeScript 710 of 799.
 
+## Decisions taken in phase 6
+
+- **Infrastructure** (`infra/`, Bicep 0.48.1): `main.bicep` at resource-group scope, five modules (`roles`, `shared`, `data`,
+  `monitor`, `app`) and one parameter file per environment that reads the run's values from the environment: `IMAGE_DIGEST`,
+  `AUTH_CLIENT_ID`, `REVISION_SUFFIX`, `STABLE_REVISION` (optional) and `ALERT_EMAIL_ADDRESS`. API versions are the newest GA
+  in Bicep's type index; `infra/bicepconfig.json` turns on `use-recent-api-versions` and CI's `bicep` job fails on any warning.
+  The one exception, `diagnosticSettings@2021-05-01-preview` (the newest version and the only one with `categoryGroup`), is
+  suppressed on its line, as in the platform repositories.
+- **Role ids without hyphens.** Built-in role definition names are public constants, but the identifier scan flags any GUID.
+  `roles.bicep` keeps them as 32 hex characters and `uuid()` formats them, so the scan stays strict with no allow-list. The
+  ids come from the platform repositories' verified notes; `what-if` and the first deployment confirm them.
+- **No client secret and no Key Vault** (ADR-009): Learn (2026-02-20) makes the secret optional; without it the platform
+  uses the implicit flow and an ID token, which carries the app roles. `04-signin.sh` must enable ID tokens, set the
+  callback redirect URI and `api://<client id>`, create both app roles with assignment required (`Invoice.Process` for users
+  and applications), give the staging CI
+  principal `Invoice.Process`, and set `AUTH_CLIENT_ID`, `RESOURCE_GROUP` and `CONTAINER_APP_NAME` per environment.
+- **Container Apps:** a workload-profiles environment with the Consumption profile, logs to the shared workspace through a
+  diagnostic setting (destination `azure-monitor`, so no workspace key); the app in multiple-revision mode (ADR-005) with an
+  HTTP rule (20 concurrent requests) and the queue rule (4 messages per replica) through `id-folium-<env>-scale`, lifecycle
+  `None` (ADR-006); startup, liveness and readiness probes on `/healthz`; 0.5 vCPU and 1 GiB.
+- **Revisions and traffic.** Each run passes a unique suffix that starts with a letter: `r<run>-<attempt>-<sha7>` in staging,
+  `p<run>-<attempt>-<sha7>` in production, `load<run>-<attempt>` for load tests. The Bicep keeps the stable revision at 100 %
+  and puts the new one at 0 % behind the `canary` label; the workflows move traffic with `az containerapp ingress traffic set`
+  and deactivate the old revision. The image reference is built from the registry's login server at deployment, so no
+  registry host is written anywhere.
+- **Workbook and alerts** (`monitor.bicep`): nine KQL tiles (four KPIs against target, two SLAs against commitment, the health
+  model, KPI events arriving). The worker's `invoice_ready` carries `fields`, not the prompt's `field_count`; the queries use
+  `fields`. Alerts exist in production only: three log alerts and one metric alert, about 1.4 €/month.
+- **Budgets** start on a fixed 2026-11-01: a start date from `utcNow()` would change on every monthly redeployment, which the
+  budgets API may refuse; a future start may be at most three months ahead, a past one within the current month.
+- **Shared-base deployments.** `shared.bicep` is a nested deployment in `rg-aiplatform-shared-swc`, which needs
+  `Microsoft.Resources/deployments/write` there; RBAC Administrator only reads and writes role assignments. The author's
+  `../_scripts/product-finance-folium/03-shared-deployments.sh` creates the custom role *Folium shared-base deployments*
+  (`Microsoft.Resources/deployments/*`, assignable only on that group) and gives it to both CI principals.
+- **Workflows:** the federated token behind `azure/login` expires within minutes, so `deploy.yml` and `load-test.yml` sign in
+  again before each later token request; an unknown app is the only case read as a first deployment; `verify` counts only
+  `push` runs of `deploy.yml`; `load-test.yml` posts its status on the commit the stable revision runs (from its suffix),
+  drains the queue before reactivating the stable revision, lets the KQL check decide instead of Locust's exit code, and
+  uploads only the stats and platform tables, since Locust's failure files can name the host. The first deployment may need
+  one rerun while the new role assignments propagate.
+- **`load-test.yml` waits for phase 7's code:** `load/locustfile.py`, which picks its shape from `LOAD_SCENARIO` (`normal`,
+  `peak`, `soak`, `stress`, `real`), reads the bearer token from `LOAD_TOKEN` and the soak length from `SOAK_MINUTES`; and the
+  doubles behind `DOUBLES=load`, honoured only when `ENVIRONMENT=staging`. Python has 85 lines left for those doubles,
+  `load/locustfile.py` and `ops/record.py` (targets 45 and 45).
+- **Review:** one independent review of the diff found eight defects, all fixed: a startup probe over the maximum failure
+  threshold of 10, a verify step that passed on a failed check, expired federated tokens, the missing deployment right on the
+  shared group, a transient error read as a first deployment, the stable revision draining the load test through the real
+  services, the status posted on the wrong commit, and Locust's exit code as the gate. Also applied: the canary revision
+  pinned by name, the fixed budget date, the artifact contents and the documents' `what-if` claims.
+- **A test defect fixed:** the pin check read `statuses:` as `uses:`; it now matches `uses:` as a word, on the same line.
+- **Not run in this phase:** `what-if` for both environments needs an interactive `az login` (the stored token expired and the
+  tenant's security defaults require MFA). `bicep build`, `build-params` and `lint` are clean.
+
 ## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 
 | Package | Name |
@@ -372,3 +425,6 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
 | GitHub Actions (2026-10-31) | `actions/setup-node` v7.1.0 (`node-version`, `cache`, `cache-dependency-path`), `actions/upload-pages-artifact` v5.0.0 (`path`), `actions/deploy-pages` v5.0.1 (output `page_url`) |
 | `starlette` 1.10.0 (phase 5) | `StaticFiles(directory=, html=True, check_dir=False)`; an unmatched path reaches the mount and gets 404 |
 | Container Apps authentication (Learn, updated 2026-07-08) | identity headers only from the platform; `/.auth/login/aad`, `/.auth/logout`; `/.auth/me` not documented |
+| Container Apps (Learn, phase 6, 2026-10-31) | Entra sign-in (updated 2026-02-20): client secret optional, implicit flow returns an ID token only; managed identities (2026-02-13): scale rule `identity` takes a user-assigned resource id, `identitySettings` `lifecycle: None` for scale-rule identities; scaling (2026-05-20): event rules advised with single-revision mode, polling 30 s, cool-down 300 s; no Service Bus role named for the scaler |
+| Bicep 0.48.1 types (phase 6) | `Microsoft.App` 2026-07-01, `DocumentDB` 2026-03-15, `Storage` 2026-06-01, `ServiceBus` 2026-01-01, `ManagedIdentity` 2024-11-30, `Insights/components` 2020-02-02, `workbooks` 2023-06-01, `scheduledQueryRules` 2026-03-01, `metricAlerts` 2026-01-01, `actionGroups` 2023-01-01, `Consumption/budgets` 2026-06-01, `CognitiveServices` 2026-07-01, `ContainerRegistry` 2025-11-01, `OperationalInsights` 2026-03-01 |
+| Retail Prices API (EUR, `swedencentral`, 2026-10-31) | Service Bus Standard base unit 0.0118 €/h, Premium 0.8162 €/h; Front Door Standard 30.80 €/month base, Premium 290.39 €/month; Defender for Containers 0.0083 € per vCore-hour, 0.2552 € per image; Defender for Cosmos DB 0.0011 € per 100 RU/s-hour |

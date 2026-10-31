@@ -1,0 +1,119 @@
+name: release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to promote to production (a rollback promotes an earlier one)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      statuses: read
+    outputs:
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - id: check
+        name: The tag's commit was deployed to staging on merge and passed the load test
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)"
+          deployed="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/deploy.yml/runs?head_sha=$sha&event=push&status=success" --jq .total_count)"
+          load="$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/status" --jq '[.statuses[] | select(.context == "load-test")][0].state')"
+          echo "$TAG: successful deploy.yml runs $deployed, load-test $load"
+          [ "$deployed" -gt 0 ] || exit 1
+          [ "$load" = "success" ] || exit 1
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  promote:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: ${{ vars.RESOURCE_GROUP }}
+      APP: ${{ vars.CONTAINER_APP_NAME }}
+      ACR: ${{ vars.ACR_NAME }}
+      IMAGE: product-finance-folium
+      SHA: ${{ needs.verify.outputs.sha }}
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      ALERT_EMAIL_ADDRESS: ${{ secrets.ALERT_EMAIL_ADDRESS }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Resolve the digest staging received for this commit and the revision serving traffic
+        run: |
+          tag="$(az acr repository show-tags -n "$ACR" --repository "$IMAGE" --orderby time_desc \
+            --query "[?ends_with(@, '-main-${SHA::7}')] | [0]" -o tsv)"
+          test -n "$tag"
+          digest="$(az acr repository show -n "$ACR" --image "$IMAGE:$tag" --query digest -o tsv)"
+          test -n "$digest"
+          stable=""
+          if az containerapp show -n "$APP" -g "$RG" -o none 2>/dev/null; then
+            stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
+            test -n "$stable"
+          fi
+          echo "IMAGE_DIGEST=$digest" >> "$GITHUB_ENV"
+          echo "STABLE_REVISION=$stable" >> "$GITHUB_ENV"
+          echo "REVISION_SUFFIX=p$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT-${SHA::7}" >> "$GITHUB_ENV"
+      - name: What-if, then deploy the digest as a new revision at 0 % behind the canary label
+        run: |
+          az deployment group what-if -g "$RG" -p infra/main.production.bicepparam --result-format ResourceIdOnly --only-show-errors
+          new="$(az deployment group create -g "$RG" -n "folium-p$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT" -p infra/main.production.bicepparam \
+            --query properties.outputs.revision.value -o tsv --only-show-errors)"
+          echo "NEW=$new" >> "$GITHUB_ENV"
+      - name: Health check on the canary label
+        run: |
+          fqdn="$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+          echo "::add-mask::$fqdn"
+          echo "::add-mask::${fqdn#*.}"
+          curl -fsS -o /dev/null --retry 12 --retry-delay 10 --retry-all-errors "https://$APP---canary.${fqdn#*.}/healthz"
+      - name: Canary at 10 % for ten minutes, watching server errors by revision
+        if: env.STABLE_REVISION != ''
+        run: |
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$NEW=10" "$STABLE_REVISION=90" -o none
+          id="$(az containerapp show -n "$APP" -g "$RG" --query id -o tsv)"
+          start="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for minute in 2 4 6 8 10; do
+            sleep 120
+            errors="$(az monitor metrics list --resource "$id" --metric Requests --aggregation Total --interval PT1M --start-time "$start" \
+              --filter "revisionName eq '$NEW' and statusCodeCategory eq '5xx'" --query "sum(value[].timeseries[].data[].total)" -o tsv)"
+            echo "after $minute min: ${errors:-0} server errors on the canary"
+            [ "${errors:-0}" = "0" ] || [ "${errors%.*}" = "0" ] || exit 1
+          done
+      - name: Promote to 100 % and deactivate the previous revision
+        if: env.STABLE_REVISION != ''
+        run: |
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$NEW=100" "$STABLE_REVISION=0" -o none
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$STABLE_REVISION" -o none
+      - name: Roll back to the previous revision
+        if: failure() && env.STABLE_REVISION != '' && env.NEW != ''
+        run: |
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$STABLE_REVISION=100" "$NEW=0" -o none
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$NEW" -o none

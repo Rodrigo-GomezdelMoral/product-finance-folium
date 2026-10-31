@@ -1,0 +1,147 @@
+name: load-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      soak_minutes:
+        description: Length of the soak scenario in minutes
+        required: false
+        default: "30"
+
+permissions:
+  contents: read
+  id-token: write
+  statuses: write
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  locust:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment: staging
+    env:
+      RG: ${{ vars.RESOURCE_GROUP }}
+      APP: ${{ vars.CONTAINER_APP_NAME }}
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      SOAK_MINUTES: ${{ inputs.soak_minutes }}
+      GH_TOKEN: ${{ github.token }}
+      LOCUST: locust -f load/locustfile.py --headless --only-summary --exit-code-on-error 0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install Locust at the pinned version
+        run: grep '^locust==' requirements-dev.txt | xargs python -m pip install --quiet
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Redeploy the staging digest as a revision with the doubles, the only active one
+        run: |
+          stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
+          test -n "$stable"
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/${stable##*-}" --jq .sha)"
+          load="$APP--load$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT"
+          fqdn="$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+          echo "::add-mask::$fqdn"
+          echo "::add-mask::${fqdn#*.}"
+          bus="$(az resource list -g "$RG" --resource-type Microsoft.ServiceBus/namespaces --query "[0].id" -o tsv)"
+          { echo "STABLE=$stable"; echo "TESTED_SHA=$sha"; echo "LOAD=$load"; echo "FQDN=$fqdn"; echo "BUS=$bus"; } >> "$GITHUB_ENV"
+          echo "START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          az containerapp update -n "$APP" -g "$RG" --revision-suffix "${load##*--}" --set-env-vars DOUBLES=load -o none
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$load=100" "$stable=0" -o none
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$stable" -o none
+      - name: Normal, peak and soak with the doubles
+        run: |
+          LOAD_TOKEN="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$LOAD_TOKEN"
+          export LOAD_TOKEN
+          mkdir -p results
+          for scenario in normal peak soak; do
+            LOAD_SCENARIO=$scenario $LOCUST --host "https://$FQDN" --csv "results/$scenario"
+          done
+          echo "END=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Sign in again, since the federated token expires after minutes
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Stress with the doubles until p95 passes 30 s or errors pass 1 %
+        run: |
+          LOAD_TOKEN="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$LOAD_TOKEN"
+          export LOAD_TOKEN
+          LOAD_SCENARIO=stress $LOCUST --host "https://$FQDN" --csv results/stress
+      - name: Sign in again before reading metrics and restoring
+        if: always()
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Replicas, CPU, memory and queue length during the run
+        run: |
+          app="$(az containerapp show -n "$APP" -g "$RG" --query id -o tsv)"
+          for target in "$app Replicas UsageNanoCores WorkingSetBytes" "$BUS ActiveMessages DeadletteredMessages"; do
+            set -- $target
+            resource=$1
+            shift
+            az monitor metrics list --resource "$resource" --metric "$@" --aggregation Maximum --interval PT1M --start-time "$START" \
+              --query "value[].[name.value, max(timeseries[].data[].maximum)]" -o tsv | tee -a results/platform.tsv
+          done
+      - name: Drain the queue on the doubles, then restore the stable revision
+        if: always() && env.STABLE != ''
+        run: |
+          for wait in $(seq 90); do
+            left="$(az servicebus queue show --ids "$BUS/queues/invoices" --query countDetails.activeMessageCount -o tsv)"
+            [ "$left" = "0" ] && break
+            sleep 10
+          done
+          az containerapp revision activate -n "$APP" -g "$RG" --revision "$STABLE" -o none
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$STABLE=100" "$LOAD=0" -o none
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$LOAD" -o none
+      - name: Sign in again before the real services and the check
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Twenty invoices through the real services
+        run: |
+          LOAD_TOKEN="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$LOAD_TOKEN"
+          export LOAD_TOKEN
+          LOAD_SCENARIO=real $LOCUST --host "https://$FQDN" --csv results/real
+      - name: Check REQ-10 and REQ-11 on normal, peak and soak, and set the load-test status on the tested commit
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          sleep 180
+          query="let s = datetime($START); let e = datetime($END);
+            let a = toscalar(requests | where timestamp between (s .. e) | summarize round(100.0 * countif(toint(resultCode) < 500) / count(), 3));
+            customEvents | where timestamp between (s .. e) and name == 'invoice_ready' and tobool(customDimensions.standard)
+            | summarize p95 = round(percentile(todouble(customDimensions.seconds), 95), 1), invoices = count() | extend availability = a"
+          row="$(az monitor app-insights query -g "$RG" --app "appi-folium-stg-swc" --analytics-query "$query" --query "tables[0].rows[0]" -o tsv)"
+          read -r p95 invoices availability <<< "$row"
+          echo "| $(date -u +%F) | normal, peak, soak | p95 ready $p95 s | availability $availability % | $invoices invoices |" | tee -a "$GITHUB_STEP_SUMMARY"
+          state=failure
+          awk "BEGIN { exit !($p95 < 30 && $availability >= 99.5) }" && state=success
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$TESTED_SHA" -f state="$state" -f context=load-test \
+            -f description="p95 ready $p95 s, availability $availability %" --silent
+          [ "$state" = success ]
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: load-test-results
+          path: |
+            results/*_stats.csv
+            results/platform.tsv
+          retention-days: 30

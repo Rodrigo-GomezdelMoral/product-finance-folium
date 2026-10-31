@@ -58,3 +58,24 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Keyboard-only flows and axe on the demo build
         run: npm test
+
+  bicep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      IMAGE_DIGEST: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      AUTH_CLIENT_ID: ci-build-only
+      REVISION_SUFFIX: ci
+      ALERT_EMAIL_ADDRESS: ci-build-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: az bicep install --version v0.48.1
+      - name: Build the template and both parameter files, and lint with no warning
+        run: |
+          az bicep build --file infra/main.bicep --stdout > /dev/null 2> build.log
+          for env in staging production; do az bicep build-params --file "infra/main.$env.bicepparam" --stdout > /dev/null 2>> build.log; done
+          az bicep lint --file infra/main.bicep 2>> build.log
+          cat build.log
+          ! grep -Eq "Warning|Error" build.log
