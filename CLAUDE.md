@@ -85,6 +85,13 @@ python -m ruff check . && python -m ruff format --check . && python -m mypy && p
 `RECORD_FIXTURES=1` it rewrites `tests/fixtures/recorded.json`, which the other tests replay. Set the endpoints in the shell
 from `az`, never in a file. It costs about 0.07 € of Document Intelligence and a few cents of model and Prompt Shields calls.
 
+The emulators run with `docker compose -f ops/compose.yaml up -d`: the Cosmos DB emulator (vNext, preview), Azurite and the
+Service Bus emulator with its SQL Server. Set `MSSQL_SA_PASSWORD` to a local password and `ACCEPT_EULA=Y` (the emulators'
+licences) in the shell, never in a file. The app reads `COSMOS_ENDPOINT`, `COSMOS_KEY` (the emulator's published key; never set
+in Azure), `STORAGE` and `SERVICEBUS` (connection strings locally, the account URL and the namespace in Azure);
+`python -m ops.seed` creates the database, containers and blob containers when a key is set, and loads the vendor master. The
+suite runs on an in-memory store; the same API flows were run against the emulators on 2026-10-31 (see phase 4).
+
 ## Estate checked in phase 0 (2026-10-30, names and states only)
 
 - **GitHub:** public repository with issues and projects, no wiki or discussions, three merge methods, branches kept; ruleset
@@ -214,6 +221,65 @@ from `az`, never in a file. It costs about 0.07 € of Document Intelligence and
 - **Measured (2026-10-31):** smoke 24 model calls, 0.018 € of model and judge tokens, about 75 s; full 97 calls, 0.069 €, about
   4 minutes. The shared account also serves other sessions, so its metrics cannot attribute a run.
 
+## Decisions taken in phase 4
+
+- **The API** (`app/main.py`) takes the principal only from `X-MS-CLIENT-PRINCIPAL`, which external requests cannot set (Learn,
+  Container Apps authentication, 2026-07-08); no header is 401, no role is 403. Roles are the claims typed `roles` or the
+  header's `role_typ`; the timeline records the `name` claim; conversations belong to a hash of the object id.
+- **The store** (`app/store.py`) keeps a `Record`: the invoice plus its file name, type, pending review request and export batch.
+  New documents are create-only and every replace carries the ETag; audit entries are created once as `<invoice id>-<nnn>`;
+  originals are written once with their SHA-256 as metadata. The request id given to `resume` is the stored one, never the
+  client's, and only for an invoice in `ready` or `with_lead`. The same `Store` is the assistant's catalogue.
+- **Upload:** magic bytes decide the type (415 otherwise), more than 20 files or one over 10 MB is 413, and an exact hash match
+  is flagged at once. Ids are the upload time to the microsecond, the index in the batch and a random byte, so "uploaded
+  before" is an id comparison.
+- **Duplicates under concurrency:** candidates are earlier uploads with the same hash or vendor, and the check waits, up to
+  20 s, while an earlier upload of the last five minutes is still queued or processing, and then raises, so the message is
+  retried rather than the invoice cleared. Without it, a re-sent invoice processed next to its original in the same batch is
+  missed; `test_duplicate_blocks_export` processes both at once.
+- **The consumer** (`app/worker.py`): four receivers, peek-lock, locks renewed up to 300 s. An invoice is claimed from `queued`
+  with its ETag; a message for an invoice past `processing` is completed without work. Azure SDK, workflow, timeout and data
+  errors (`ValueError`, `KeyError`, `ArithmeticError`) abandon the message, and a failed settlement is left to the lock's
+  expiry; the fifth delivery (`delivery_count` 4: it starts at 0, checked on the emulator) marks the invoice `failed`
+  with the error type and dead-letters the message. A stopped consumer turns `/healthz` into 503 for the liveness probe.
+- **Export:** the batch id is the first 16 hex characters of the SHA-256 of `Idempotency-Key`. The first request writes the
+  batch, with the approved invoices of that moment, create-only in `exports`; every request with the key then claims only
+  those invoices with their ETag and writes the files from the batch's members, so retries and concurrent calls agree, two
+  keys never share an invoice, and a retry completes a half-written batch. CSV with one row per tax line, the JSON layout, no
+  IBAN.
+- **Resume** now takes, among the checkpoints whose pending requests hold the stored request id, the one with the highest
+  iteration. The phase 2 rule (only checkpoints at the highest iteration overall) left an invoice unreviewable when the save
+  after a successful resume failed. Exactly once is the API's: the request id comes from the stored record, which changes on
+  every saved decision, and the save carries the ETag; a second approval gets 409.
+- **Upload:** if storing or queuing fails, the invoices already stored are marked `failed`, so none waits in `queued` forever.
+- **Erasure** (`ops/erase.py`): sole traders only, and only when every invoice was issued before the fiscal year six years
+  back. The vendor's name, tax ID, address and IBAN are replaced in the invoice, its file name and its audit entries (the one
+  exception to create-only, run by an operator), its workflow checkpoints and the original are deleted, the vendor leaves the
+  vendor master only when every invoice was saved, and an `erased` step records who and when. A rerun continues where it
+  stopped. Export files and blob versions expire through lifecycle rules in phase 6 rather than being rewritten.
+- **Telemetry:** KPI events are logs with `microsoft.custom_event.name`, which the exporter sends as `customEvents`; logs are
+  never trace-sampled (`enable_trace_based_sampling_for_logs=False`, also the 1.8.11 default) while traces keep the default
+  limit of 5 per second. There is no local Application Insights, so the KQL check of KPI events moves to phase 7:
+  `customEvents | where name in ("invoice_uploaded", "invoice_ready", "invoice_approved", "field_corrected",
+  "invoice_exported", "feedback") | summarize count() by name`.
+- **Resilience:** an Azure SDK error after the SDK's own retries is a 503 with `Retry-After: 10`; a model failure in the chat
+  ends the stream with a sentence.
+- **Defect found by the emulators:** an invoice read back from Cosmos DB carries pydantic's `TzInfo`, which the restricted
+  unpickler of `CosmosCheckpointStorage` refused, so no review could resume. `CHECKPOINT_TYPES` allows it, and the API tests
+  now use `FileCheckpointStorage`, which pickles, so CI catches the class of error.
+- **Review:** one independent review of the phase found seven defects, all fixed above (consumer errors, the duplicate wait's
+  timeout, resume after a lost save, erasure of checkpoints and file names and its rerun, queued orphans, same-key exports).
+  The audit trail is read in id order.
+- **Emulator run (2026-10-31):** the API tests against Cosmos DB vNext, Azurite and Service Bus with the real consumer passed,
+  before and after the review fixes (the upload test's last line reads statuses that a real queue is still processing); `CosmosHistoryProvider` saved and listed a conversation; the app started with `uvicorn`, took an upload, retried
+  it five times against an unreachable model endpoint, marked it `failed` and dead-lettered it.
+- **For phase 6:** ADR-003 and ADR-004 record the cross-partition queries on `invoices` (`/id`, bounded by `TOP`), the queue's
+  `lockDuration` PT1M and `maxDeliveryCount` 5, a dead-letter alert, lifecycle rules for exports and previous blob versions,
+  and the liveness probe on `/healthz`.
+- **Budget:** `main.py`, `store.py` and `worker.py` are over their line targets (214, 137 and 67 against 180, 100 and 50);
+  the total leaves about 90 Python lines for phases 5 to 8, so the Locust file and `ops/record.py` must stay short, and the
+  test budget is full (699 of 700).
+
 ## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 
 | Package | Name |
@@ -235,3 +301,9 @@ from `az`, never in a file. It costs about 0.07 € of Document Intelligence and
 | `builtin.groundedness` (Learn, page of 2026-08-26) | GA; `response` and `context`, `query` optional; scores 1 to 5, default pass threshold 3 |
 | GitHub Actions (docs, 2026-10-31) | a skipped job reports success and does not block a required check; `azure/login` v3 only moves to Node 24; `actions/cache` v6 restore and save inputs unchanged |
 | Prompt Shields `2024-09-01` (Learn, 2026-10-31) | `POST /contentsafety/text:shieldPrompt` through `ContentSafetyClient.send_request` with the path relative to `/contentsafety`; prompt up to 10,000 characters, up to five documents totalling 10,000; an empty `userPrompt` is accepted; trained mainly on English |
+| `fastapi` 0.162.0, `starlette` 1.10.0 (phase 4) | `UploadFile.size`; form parsing needs `python-multipart` (0.0.32, pinned) |
+| `azure-servicebus` 7.15.0 (phase 4) | `get_queue_receiver(queue, auto_lock_renewer=)`, `AutoLockRenewer(max_lock_renewal_duration=)`, `abandon_message`, `dead_letter_message(reason=)`; `delivery_count` is 0 on the first delivery |
+| `azure-monitor-opentelemetry` 1.8.11 (phase 4) | `configure_azure_monitor(credential=, logger_name=, enable_trace_based_sampling_for_logs=)`; default sampler 5 traces per second; exporter 1.0.0b58 maps `microsoft.custom_event.name` to `customEvents` |
+| `agent-framework-azure-cosmos` 1.0.0b261015 (phase 4) | `CosmosHistoryProvider(container_client=)` on `/session_id`, `list_sessions()`, `get_messages(session_id)`; `CosmosCheckpointStorage(container_client=, allowed_checkpoint_types=)` |
+| `agent-framework-core` 1.23.0 (phase 4) | `Agent.run(message, stream=True, session=AgentSession(session_id=))` returns a `ResponseStream` of updates with `.text`; `ChatResponse.from_update_generator` |
+| Service Bus emulator 2.0.1 (Learn, page of 2026-08-28) | needs SQL Server 2022; configuration at `/ServiceBus_Emulator/ConfigFiles/Config.json`; `DefaultMessageTimeToLive` at most 1 hour |
