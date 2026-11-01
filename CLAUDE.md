@@ -429,7 +429,7 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
 - **Review before the first publish:** one independent review found no blocking defect. Applied: probable duplicates among
   load invoices (the issue-date spread above), a poll that raised on a non-JSON body and lost its batch's measurements, the
   stress stop read from every request (now uploads and `READY` only), an empty `SOAK_MINUTES`, and ID tokens set again with
-  the redirect URI. Open risk, to be measured: with 0 to 2 replicas of 4 consumers and about 12 s per doubled invoice, the last
+  the redirect URI. Open risk, measured by the two load tests below: with 0 to 2 replicas of 4 consumers and about 12 s per doubled invoice, the last
   invoices of a 20-file peak batch can pass 30 s and take the combined p95 over the SLA; ADR-011's fallbacks then apply.
 - **The environment and the app in `spaincentral` (ADR-013).** The first staging deployment failed in preflight with
   `MaxNumberOfRegionalEnvironmentsInSubExceeded`: 1 of 1 environments used in `swedencentral` by another product, 0 of 5 in
@@ -488,7 +488,13 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   both environments (ADR-003 note: peak CPU 0.13 of 0.5 vCPU, Document Intelligence at 1 to 2 submissions per second); in
   production only, the custom rule `business-hours` (KEDA `cron`, `Europe/Madrid`, `0 8 * * 1-5` to `0 19 * * 1-5`,
   `desiredReplicas` 1, selected by `short == 'prod'`), about 3 to 4 €/month (ADR-011, `docs/cost.md`). Staging keeps scale
-  to zero; staging replicas stay at 2. The load test runs again after the merge. `what-if` not run: no read-only `what-if`
+  to zero; staging replicas stay at 2. The load test ran again after the merge (below). `what-if` not run: no read-only `what-if`
   from this machine is recorded since phase 6's expired token; `bicep build` and `lint` are clean.
 - **Telemetry:** spans are sampled (5 traces per second by default), so model token counts per normalizer call are not
   complete in staging; KPI events are logs and are not sampled.
+- **Second load test (run 41299957986, commit `4785e17`) met REQ-10 and REQ-11:** p95 ready 24.2 s and availability 100 %
+  over normal, peak and soak; `load-test` set to `success`. No failed request or invoice in any scenario; the two
+  dead-lettered messages are run 1's. Peak batch alone 41 s at p95 (56 s in run 1); stress stopped at about 105 users on
+  p95, with no error; 20 invoices through the real services 49 s at p95 from the click, 17 s of it the restored revision's
+  cold start. Peak CPU 0.18 vCPU, memory 0.49 GB, queue 22, replicas 2. Staging back at zero replicas afterwards.
+  `release.yml` reads `load-test` on the released commit, so phase 8 runs the load test on the release candidate.

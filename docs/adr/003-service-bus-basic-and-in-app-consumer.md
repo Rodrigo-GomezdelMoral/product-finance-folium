@@ -50,5 +50,9 @@ to 2 analyze submissions per second, against 15 for the account.
 The author raised the receivers to ten per replica in both environments (`CONSUMERS` in `app/main.py`), and the queue rule's
 `messageCount` to ten with it, so a 20-invoice batch runs in one round on two replicas and the scaler adds a replica
 per ten waiting messages. At most 20 invoices are in flight in staging and 30 in production (60 during a production canary,
-ADR-005); at about 7.5 s per analysis that is at most about 8 submissions per second, still under 15. The next load test is
-the proof; if CPU or memory becomes the limit, the receivers come down before the replicas go up.
+ADR-005); at about 7.5 s per analysis that is at most about 8 submissions per second, still under 15. If CPU or memory
+becomes the limit, the receivers come down before the replicas go up.
+
+**Measured, 2026-11-01 (run 41299957986):** p95 ready 24.2 s over normal, peak and soak and 100 % availability, both SLAs
+met; a 20-invoice batch on the doubles 27 s at p50 and 41 s at p95 (36 s and 56 s with four receivers); through the real
+services 44 s and 49 s from the click (56 s and 64 s). Peak CPU 0.18 of 0.5 vCPU, memory under 0.5 GB: neither is the limit.
