@@ -2,7 +2,8 @@
 
 How Folium is promoted, watched, restored and paid for. Status on 2026-11-01: staging is deployed through `deploy.yml`
 and was used live through the API and the web; the first load test, the cold start, the restore drill and the Advisor review
-are recorded below. The first load test did not meet REQ-10 or REQ-11, so nothing is promoted yet.
+are recorded below. The first load test did not meet REQ-10 or REQ-11; after its fixes and the capacity change, the second
+met both (p95 ready 24.2 s, availability 100 %), so staging may be promoted.
 
 ## Environments and promotion
 
@@ -121,26 +122,44 @@ group with `deploy.yml`, and a newer pending run cancels an older pending one.
 p50, p95 and p99 are Locust's `READY invoice` entries: from the upload until the web would show the review card. Queue,
 replicas, CPU and memory are maxima over the whole run on the doubles.
 
-| Date | Scenario | p50 | p95 | p99 | Requests/s | Errors | Users | Queue | Replicas | CPU | Memory |
+| Run | Scenario | p50 | p95 | p99 | Requests/s | Errors | Users | Queue | Replicas | CPU | Memory |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-11-01 | normal, doubles | 15 s (1 invoice) | | | 0.13 | 24 of 25 uploads `503` | 5 | 16 | 2 | 0.13 vCPU | 0.52 GB |
-| 2026-11-01 | peak, doubles | 36 s | 56 s | 56 s | 3.47 | 0 | 60 invoices in 3 batches | 16 | 2 | 0.13 vCPU | 0.52 GB |
-| 2026-11-01 | soak 30 min, doubles | 14 s | 31 s | 73 s | 0.70 | 15 of 150 uploads `503`, 1 invoice failed | 5 | 16 | 2 | 0.13 vCPU | 0.52 GB |
-| 2026-11-01 | stress, doubles | 16 s | 20 s | 20 s | 3.70 | 3 of 110 uploads `503` | ramp, 10 a minute | 16 | 2 | 0.13 vCPU | 0.52 GB |
-| 2026-11-01 | 20 invoices, real services | 56 s | 64 s | 64 s | 2.44 | 0 | 1 batch | | 1 to 2 | | |
+| 2, 2026-11-01 | normal, doubles | 16 s | 30 s (max 29.6 s) | 30 s | 0.83 | 0 of 25 uploads | 5 | 22 | 2 | 0.18 vCPU | 0.49 GB |
+| 2, 2026-11-01 | peak, doubles | 27 s | 41 s | 41 s | 2.83 | 0 | 60 invoices in 3 batches | 22 | 2 | 0.18 vCPU | 0.49 GB |
+| 2, 2026-11-01 | soak 30 min, doubles | 16 s | 16 s | 17 s | 0.73 | 0 of 150 uploads, no invoice failed | 5 | 22 | 2 | 0.18 vCPU | 0.49 GB |
+| 2, 2026-11-01 | stress, doubles | 16 s | 27 s | 29 s | 8.94 | 0 of 616 uploads | ramp, 10 a minute, stopped at about 105 | 22 | 2 | 0.18 vCPU | 0.49 GB |
+| 2, 2026-11-01 | 20 invoices, real services | 44 s | 49 s | 49 s | 2.16 | 0 | 1 batch | | 1 to 2 | | |
+| 1, 2026-11-01 | normal, doubles | 15 s (1 invoice) | | | 0.13 | 24 of 25 uploads `503` | 5 | 16 | 2 | 0.13 vCPU | 0.52 GB |
+| 1, 2026-11-01 | peak, doubles | 36 s | 56 s | 56 s | 3.47 | 0 | 60 invoices in 3 batches | 16 | 2 | 0.13 vCPU | 0.52 GB |
+| 1, 2026-11-01 | soak 30 min, doubles | 14 s | 31 s | 73 s | 0.70 | 15 of 150 uploads `503`, 1 invoice failed | 5 | 16 | 2 | 0.13 vCPU | 0.52 GB |
+| 1, 2026-11-01 | stress, doubles | 16 s | 20 s | 20 s | 3.70 | 3 of 110 uploads `503` | ramp, 10 a minute | 16 | 2 | 0.13 vCPU | 0.52 GB |
+| 1, 2026-11-01 | 20 invoices, real services | 56 s | 64 s | 64 s | 2.44 | 0 | 1 batch | | 1 to 2 | | |
 
-**Verdict, 2026-11-01: not promoted.** Over normal, peak and soak, Application Insights gives a p95 of `invoice_ready` of
-41.4 s on standard invoices (REQ-11: under 30 s) and an availability of 98.2 % (REQ-10: 99.5 %); two messages were
-dead-lettered. The workflow set `load-test` to `failure` on the tested commit. Causes found:
+**Run 2 (41299957986, commit `4785e17`), verdict 2026-11-01: REQ-10 and REQ-11 met, promotable.** Over normal, peak and
+soak, Application Insights gives a p95 of `invoice_ready` of **24.2 s** (REQ-11: under 30 s; SLO target under 25 s) and an
+availability of **100 %** (REQ-10: 99.5 %). The workflow set `load-test` to `success` on the tested commit. No upload or
+request failed in any scenario and no invoice ended `failed`; the dead-letter queue still held run 1's two messages and no
+new one. With ten receivers per replica, peak CPU rose from 0.13 to 0.18 of 0.5 vCPU and memory stayed under 0.5 GB.
+
+- **Batches alone are slower than the month.** A month-end batch on its own still has a p95 of 41 s on the doubles (56 s in
+  run 1) with staging's two replicas; REQ-11 is a monthly p95, and the mix of normal, peak and soak stays under it.
+  Production allows three replicas and keeps one warm in business hours (ADR-011); its p95 alert is the watch.
+- **Stress** stopped at about 105 users, about 105 uploads a minute, when the current p95 passed 30 s, with no error.
+- **Real services:** the batch's upload was answered after 17 s, because the restored stable revision started from zero;
+  REQ-11's metric starts at `invoice_uploaded`, after it, so it sees about 27 to 32 s of the 44 to 49 s measured here.
+
+**Run 1 (41293079362), verdict 2026-11-01: not promoted.** Over normal, peak and soak, Application Insights gave a p95 of
+`invoice_ready` of 41.4 s on standard invoices (REQ-11: under 30 s) and an availability of 98.2 % (REQ-10: 99.5 %); two
+messages were dead-lettered. The workflow set `load-test` to `failure` on the tested commit. Causes found:
 
 - **The `503`s in the console log came from one defect:** the upload route shared one Service Bus sender, and concurrent first sends raced while
   the AMQP link opened (`'NoneType' object has no attribute 'client_ready_async'` in the console log). Sends are now
-  serialised behind a lock with a 30 s timeout; the link stays shared. The next run of the load test is the proof.
+  serialised behind a lock with a 30 s timeout; the link stays shared. Run 2 had no failed upload.
 - **Capacity under batches:** with four receivers per replica and two replicas, a 20-invoice batch runs in rounds of about
   12 s on the doubles and 13 to 15 s on the real services, and the duplicate check makes each invoice wait for earlier
   uploads still queued or processing. CPU never passed 0.13 of 0.5 vCPU. The author's decision (2026-11-01): ten receivers per replica in
   both environments, the queue rule at ten messages per replica (ADR-003), and the business-hours replica in production
-  (ADR-011). The load test runs again after it.
+  (ADR-011), measured by run 2.
 - **The status check read only the first value** of the query's row (`az ... -o tsv` prints one value per line); it now joins
   them, so availability and the invoice count reach the gate.
 
