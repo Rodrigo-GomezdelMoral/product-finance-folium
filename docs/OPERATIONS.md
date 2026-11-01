@@ -10,10 +10,13 @@ tests, the restore drill and the Advisor review are phase 7 work, and their resu
 | | Staging | Production |
 |---|---|---|
 | Resource group | `rg-folium-stg-swc` | `rg-folium-prod-swc` |
-| App | `ca-folium-stg`, 0 to 2 replicas | `ca-folium-prod`, 0 to 3 replicas |
+| App, in `spaincentral` (ADR-013) | `ca-folium-stg` in `cae-folium-stg-spc`, 0 to 2 replicas | `ca-folium-prod` in `cae-folium-prod-spc`, 0 to 3 replicas |
 | Data | `cosmos-folium-stg-swc`, `stfoliumstgswc`, `sb-folium-stg-swc` | `cosmos-folium-prod-swc`, `stfoliumprodswc`, `sb-folium-prod-swc` |
 | Telemetry | `appi-folium-stg-swc`, workbook | `appi-folium-prod-swc`, workbook, `ag-folium-prod-swc` and four alerts |
 | Changed by | `deploy.yml`, on every merge to `main` | `release.yml`, on a published release, after the author's approval |
+
+The resource groups, data and telemetry are in `swedencentral`. The app runs in `spaincentral` because the subscription's
+one Container Apps environment in `swedencentral` is taken. An outage in either region stops the service (ADR-013).
 
 - **Every merge** builds one image on the runner, tagged `<yyyymmdd>-main-<sha7>`, pushes it to `craiplatformshared`, and
   `deploy.yml` deploys its digest to staging: `what-if`, then a new revision at 0 % behind the `canary` label, a health check

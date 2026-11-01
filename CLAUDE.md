@@ -118,7 +118,8 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   requests per second per resource, shared by every product on the account. Cosmos DB, Service Bus, Storage and Key Vault: no
   account in the subscription yet, the region open to Cosmos DB, every name in the build prompt available, no soft-deleted vault.
   Container Apps managed environments: 15 in the region, none used, so the two environments of the build prompt's
-  `Environments` table fit as designed.
+  `Environments` table fit as designed. Wrong: ARM preflight in phase 7 found the limit is 1 in the region, taken by
+  another product, and 5 in `spaincentral` (ADR-013).
 
 ## Decisions taken in phase 0
 
@@ -430,6 +431,12 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   stress stop read from every request (now uploads and `READY` only), an empty `SOAK_MINUTES`, and ID tokens set again with
   the redirect URI. Open risk, to be measured: with 0 to 2 replicas of 4 consumers and about 12 s per doubled invoice, the last
   invoices of a 20-file peak batch can pass 30 s and take the combined p95 over the SLA; ADR-011's fallbacks then apply.
+- **The environment and the app in `spaincentral` (ADR-013).** The first staging deployment failed in preflight with
+  `MaxNumberOfRegionalEnvironmentsInSubExceeded`: 1 of 1 environments used in `swedencentral` by another product, 0 of 5 in
+  `spaincentral`. The author moved only the environment and the app: `appLocation` in `main.bicep` (default `spaincentral`),
+  environments `cae-folium-<env>-spc`; resource groups, data, identities, Application Insights and the shared base stay in
+  `swedencentral`. Each data call adds the 50 ms round trip (about 1 to 1.5 s per invoice), which the load tests measure.
+  Workflows and `04-signin.sh` read the ingress host name from the app, so none of them changes.
 
 ## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 
