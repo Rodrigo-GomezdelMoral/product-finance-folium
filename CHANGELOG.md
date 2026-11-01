@@ -6,8 +6,21 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-01
+
+First release: Folium runs in staging, measured against its SLAs, and is promoted to production by this release.
+
 ### Added
 
+- Recorded runs of the deployed system for the published demo (`web/src/demo/runs/`), written by `ops/record.py` from
+  staging with real timings and the signed-in user replaced by a role: a batch upload ready for review, a correction and
+  approval, findings decided by the lead, a probable duplicate blocked, hidden instructions refused, an export exactly once,
+  an invoice's timeline and the assistant's cited answers.
+- Load doubles for Document Intelligence and the normaliser's model with their measured latencies (`app/doubles.py`,
+  honoured only in staging with `DOUBLES=load`) and `load/locustfile.py` with the normal, peak, soak, stress and real-services
+  scenarios; results and verdicts of both load tests in `docs/OPERATIONS.md`.
+- The live test in staging, the cold start, the restore drill and the Advisor review in `docs/OPERATIONS.md`.
+- In production only, the `business-hours` KEDA cron rule keeps one replica from 08:00 to 19:00 on weekdays (ADR-011).
 - Infrastructure as code in `infra/` for staging and production: Container Apps with built-in Entra sign-in, multiple
   revisions, an HTTP and a Service Bus queue scale rule through an identity the code cannot use; Cosmos DB serverless with
   7-day continuous backup; Blob Storage with versioning, soft delete and lifecycle rules; Service Bus Basic with a dead-letter
@@ -75,6 +88,10 @@ All notable changes to Folium are documented in this file. The format follows
 
 ### Changed
 
+- The consumer runs ten receivers per replica and the queue scale rule targets ten messages per replica (ADR-003), after
+  the first load test.
+- Sign-in accepts version 2 access tokens with the client id as audience, so the operator and the CI principal can call
+  the API with a bearer token.
 - The normaliser fills only the tax lines and the IRPF withholding (`normalizer_v2`); version 1 filled a missing vendor tax ID
   with the customer's. Its cross-check now requires every amount it proposes to be printed in the document.
 - The assistant's `find_invoices` lists the finding kinds it accepts and returns each invoice's findings, and `assistant_v2`
@@ -88,9 +105,15 @@ All notable changes to Folium are documented in this file. The format follows
 
 ### Fixed
 
+- Concurrent uploads raced on the shared Service Bus sender while its link opened and answered `503`; sends are now
+  serialised behind a lock.
+- The assistant's streamed answer repeated its text, because the final text event of the Responses API replaces what the
+  deltas built; the route skips replacing contents.
+- `load-test.yml` read only the first value of the gate query's row.
 - Checkpoints of invoices read back from Cosmos DB failed to load, because their dates carry pydantic's time zone
   type; the checkpoint allow-list now includes it.
 - A review could not resume when the save after an earlier resume had failed; resume now takes the latest checkpoint that
   holds the stored request.
 
-[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/commits/main
+[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/releases/tag/v1.0.0

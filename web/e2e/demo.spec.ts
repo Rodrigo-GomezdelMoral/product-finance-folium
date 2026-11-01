@@ -51,7 +51,7 @@ test("the lead resolves a duplicate with a reason and the assistant cites invoic
   await tabTo(page, "Approve");
   await page.keyboard.press("Enter");
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Assistant answer with citations" }).click();
+  await page.getByRole("button", { name: "Assistant lists invoices awaiting approval" }).click();
   await expect(page.getByRole("list", { name: "Sources" })).toContainText("Invoice F2026-0558");
   await accessible(page);
 });
