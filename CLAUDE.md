@@ -498,3 +498,24 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   p95, with no error; 20 invoices through the real services 49 s at p95 from the click, 17 s of it the restored revision's
   cold start. Peak CPU 0.18 vCPU, memory 0.49 GB, queue 22, replicas 2. Staging back at zero replicas afterwards.
   `release.yml` reads `load-test` on the released commit, so phase 8 runs the load test on the release candidate.
+
+## Decisions taken in phase 8 (2026-11-01)
+
+- **`ops/record.py`** drives the deployed API as the web client does and writes one run file in the phase 5 format: every
+  exchange with its status, latency and body, polls every 2 s until an invoice leaves `queued` or `processing`, the original,
+  and the review it was told to send (`--review` JSON, `set` for corrections). `GET /api/me` warms the app and is not
+  recorded; the signed-in name is replaced everywhere by the role (`Accounting lead`); the conversation header is not kept.
+  It reads `FOLIUM_URL` and `FOLIUM_TOKEN` from the shell (host and bearer token from `az`, never in a file) and imports
+  `httpx`, now pinned in `requirements-dev.txt`.
+- **Fresh invoices, seed 2027.** Staging already holds the committed dataset's first 20 PDFs (the real-services load
+  scenario) and the live test's uploads, so re-uploading them would show duplicates everywhere. `ops/make_invoices.py --seed
+  2027` gives new numbers from the same vendor master, with its own planted errors, duplicates and injections.
+- **Run 01 recorded by the session** (batch of `inv-022.pdf`, `inv-024.jpg`, `inv-012.pdf`: ready in about 13 s, warm).
+  Document Intelligence read `Frio` for `Frío` in `inv-022`'s vendor name, which run 02 corrects. Runs 02 to 09 approve,
+  reject and export in staging; the session's permission policy refused those state changes, so they are the author's
+  `../_scripts/product-finance-folium/05-record-demo.sh`, which reads run 01's invoice id and skips runs already recorded.
+- **KPIs in staging** (Application Insights, 2026-11-01, operator tests): 6 approvals, median `review_seconds` 35 s, 5 of 6
+  without correction, 1 field corrected, no feedback event. A join query for the field correction rate's denominator failed
+  with `BadArgumentError` and was not pursued.
+- **Release:** `CHANGELOG.md` cut as `1.0.0` dated 2026-11-01. `release.yml` requires `load-test` `success` on the tagged
+  commit, so the load test runs again on the merge of `feature/release` before the release is published.
