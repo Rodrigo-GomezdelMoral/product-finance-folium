@@ -130,7 +130,7 @@ jobs:
             customEvents | where timestamp between (s .. e) and name == 'invoice_ready' and tobool(customDimensions.standard)
             | summarize p95 = round(percentile(todouble(customDimensions.seconds), 95), 1), invoices = count() | extend availability = a"
           row="$(az monitor app-insights query -g "$RG" --app "appi-folium-stg-swc" --analytics-query "$query" --query "tables[0].rows[0]" -o tsv)"
-          read -r p95 invoices availability <<< "$row"
+          { read -r p95; read -r invoices; read -r availability; } <<< "$row"
           echo "| $(date -u +%F) | normal, peak, soak | p95 ready $p95 s | availability $availability % | $invoices invoices |" | tee -a "$GITHUB_STEP_SUMMARY"
           state=failure
           awk "BEGIN { exit !($p95 < 30 && $availability >= 99.5) }" && state=success

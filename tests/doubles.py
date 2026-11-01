@@ -38,7 +38,8 @@ class Replay(BaseChatClient[Any]):
         async def updates() -> AsyncIterator[af.ChatResponseUpdate]:
             if isinstance(answer, Exception):
                 raise answer
-            yield af.ChatResponseUpdate(role="assistant", contents=[Content.from_text(answer)], model=self.model)
+            final = Content.from_text(answer, merge_mode="replace")
+            yield af.ChatResponseUpdate(role="assistant", contents=[Content.from_text(answer), final], model=self.model)
 
         reply = ChatResponse.from_update_generator
         return af.ResponseStream(updates(), finalizer=ChatResponse.from_updates) if stream else reply(updates())

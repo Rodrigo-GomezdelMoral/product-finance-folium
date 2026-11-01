@@ -243,7 +243,7 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   20 s, while an earlier upload of the last five minutes is still queued or processing, and then raises, so the message is
   retried rather than the invoice cleared. Without it, a re-sent invoice processed next to its original in the same batch is
   missed; `test_duplicate_blocks_export` processes both at once.
-- **The consumer** (`app/worker.py`): four receivers, peek-lock, locks renewed up to 300 s. An invoice is claimed from `queued`
+- **The consumer** (`app/worker.py`): four receivers (ten since phase 7), peek-lock, locks renewed up to 300 s. An invoice is claimed from `queued`
   with its ETag; a message for an invoice past `processing` is completed without work. Azure SDK, workflow, timeout and data
   errors (`ValueError`, `KeyError`, `ArithmeticError`) abandon the message, and a failed settlement is left to the lock's
   expiry; the fifth delivery (`delivery_count` 4: it starts at 0, checked on the emulator) marks the invoice `failed`
@@ -361,7 +361,7 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   principal `Invoice.Process`, and set `AUTH_CLIENT_ID`, `RESOURCE_GROUP` and `CONTAINER_APP_NAME` per environment.
 - **Container Apps:** a workload-profiles environment with the Consumption profile, logs to the shared workspace through a
   diagnostic setting (destination `azure-monitor`, so no workspace key); the app in multiple-revision mode (ADR-005) with an
-  HTTP rule (20 concurrent requests) and the queue rule (4 messages per replica) through `id-folium-<env>-scale`, lifecycle
+  HTTP rule (20 concurrent requests) and the queue rule (4 messages per replica, 10 since phase 7) through `id-folium-<env>-scale`, lifecycle
   `None` (ADR-006); startup, liveness and readiness probes on `/healthz`; 0.5 vCPU and 1 GiB.
 - **Revisions and traffic.** Each run passes a unique suffix that starts with a letter: `r<run>-<attempt>-<sha7>` in staging,
   `p<run>-<attempt>-<sha7>` in production, `load<run>-<attempt>` for load tests. The Bicep keeps the stable revision at 100 %
@@ -472,3 +472,23 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
 | Container Apps (Learn, phase 6, 2026-10-31) | Entra sign-in (updated 2026-02-20): client secret optional, implicit flow returns an ID token only; managed identities (2026-02-13): scale rule `identity` takes a user-assigned resource id, `identitySettings` `lifecycle: None` for scale-rule identities; scaling (2026-05-20): event rules advised with single-revision mode, polling 30 s, cool-down 300 s; no Service Bus role named for the scaler |
 | Bicep 0.48.1 types (phase 6) | `Microsoft.App` 2026-07-01, `DocumentDB` 2026-03-15, `Storage` 2026-06-01, `ServiceBus` 2026-01-01, `ManagedIdentity` 2024-11-30, `Insights/components` 2020-02-02, `workbooks` 2023-06-01, `scheduledQueryRules` 2026-03-01, `metricAlerts` 2026-01-01, `actionGroups` 2023-01-01, `Consumption/budgets` 2026-06-01, `CognitiveServices` 2026-07-01, `ContainerRegistry` 2025-11-01, `OperationalInsights` 2026-03-01 |
 | Retail Prices API (EUR, `swedencentral`, 2026-10-31) | Service Bus Standard base unit 0.0118 €/h, Premium 0.8162 €/h; Front Door Standard 30.80 €/month base, Premium 290.39 €/month; Defender for Containers 0.0083 € per vCore-hour, 0.2552 € per image; Defender for Cosmos DB 0.0011 € per 100 RU/s-hour |
+
+## Phase 7, second part (2026-11-01)
+
+- **Staging live.** Vendor master seeded with `ops/seed.py` as the operator. Live test through the
+  API and the web as the lead: every Must reached its final state (see `docs/OPERATIONS.md`). Cold start 35.3 s to the `202`,
+  about 49 s to ready (ADR-011 measurement). Restore drill: Cosmos DB point-in-time restore 656 s; data-plane role assignments
+  are not restored; blob version restore 13 s. Advisor: nothing on Folium's groups.
+- **First load test (run 41293079362) failed REQ-10 and REQ-11:** p95 ready 41.4 s, availability 98.2 %. Fixed: the shared
+  Service Bus sender raced on concurrent first sends (`503`), now behind an `asyncio.Lock`; the gate read one value of a
+  multi-line `tsv` row; the assistant's stream repeated its text (the Responses API's `output_text.done` arrives as a
+  `merge_mode="replace"` content, now skipped; the `Replay` double emits it too). Open: capacity under 20-invoice batches,
+  a decision for the author (receivers per replica, staging replicas, ADR-011 cron rule).
+- **Author's decision (2026-11-01):** `CONSUMERS` 10 in `app/main.py` and the queue rule's `messageCount` 10 in `app.bicep`,
+  both environments (ADR-003 note: peak CPU 0.13 of 0.5 vCPU, Document Intelligence at 1 to 2 submissions per second); in
+  production only, the custom rule `business-hours` (KEDA `cron`, `Europe/Madrid`, `0 8 * * 1-5` to `0 19 * * 1-5`,
+  `desiredReplicas` 1, selected by `short == 'prod'`), about 3 to 4 €/month (ADR-011, `docs/cost.md`). Staging keeps scale
+  to zero; staging replicas stay at 2. The load test runs again after the merge. `what-if` not run: no read-only `what-if`
+  from this machine is recorded since phase 6's expired token; `bicep build` and `lint` are clean.
+- **Telemetry:** spans are sampled (5 traces per second by default), so model token counts per normalizer call are not
+  complete in staging; KPI events are logs and are not sampled.

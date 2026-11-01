@@ -9,7 +9,7 @@ in staging, and the end of the build compares these figures with Cost Management
 | | At rest | In use | Budget |
 |---|---|---|---|
 | Staging | ≈ 0.3 €/month (Cosmos DB and blob storage) | ≈ 7 €/month (evaluation, load tests, real-service runs) | 10 € |
-| Production | ≈ 1.5 €/month (three log alerts, one metric alert, storage) | ≈ 3 €/month with demo use | 20 € |
+| Production | ≈ 1.5 €/month (three log alerts, one metric alert, storage) plus ≈ 3 to 4 €/month for the warm replica in business hours (ADR-011) | ≈ 3 €/month with demo use | 20 € |
 | Client volume (1,500 invoices, 3,000 pages) | | Document Intelligence 26.4 € · `gpt-5-mini` ≈ 5.3 € · Prompt Shields ≈ 1 € · Container Apps ≈ 4 € · the rest ≈ 1.5 € → **≈ 38 €/month, ≈ 0.025 € per invoice**, against 3 to 8 € of manual work | |
 
 ## Prices used
@@ -29,12 +29,13 @@ The shared base bills whatever Folium does: the registry (≈ 4.40 €/month) an
 
 ## What bills while stopped
 
-Cosmos DB and blob storage (cents) in both environments, and the production alert rules. To stop everything without
+Cosmos DB and blob storage (cents) in both environments, the production alert rules, and production's one replica Monday to
+Friday from 08:00 to 19:00 (Europe/Madrid), billed at the idle rate while it waits (ADR-011). To stop everything without
 deleting: disable the alert rules and the Azure workflows (`OPERATIONS.md`).
 
 ## Limits that cap the bill
 
-Replicas (2 and 3), four receivers per replica, `max_tokens` 1,500 and 800, 20 files of 10 MB per upload, the shared
+Replicas (2 and 3), ten receivers per replica, `max_tokens` 1,500 and 800, 20 files of 10 MB per upload, the shared
 deployment's 100K tokens per minute, and the budgets with alerts at 50, 80 and 100 % (CO:04, CO:12).
 
 ## Trade-offs not applied
@@ -42,7 +43,6 @@ deployment's 100K tokens per minute, and the budgets with alerts at 50, 80 and 1
 | Option | Monthly cost | Why not now | ADR |
 |---|---|---|---|
 | Service Bus Standard (duplicate detection, sessions) | 8.61 € | the idempotent consumer replaces duplicate detection | 003 |
-| Warm replica in business hours (KEDA cron) | ≈ 3 to 4 € | only if the cold start breaks REQ-11 | 011 |
 | Zone redundancy | a VNet environment and replicas always on | ends scale to zero; cold DR within the 4-hour RTO | 011 |
 | Data Zone EU model deployment | ≈ +0.5 € at client volume | the IBAN is excluded and the text minimised | 008 |
 | Private endpoints | ≈ 596 € (Service Bus Premium alone) plus per-endpoint charges | Basic has none; authentication and local-auth-off cover the surface | 009 |
