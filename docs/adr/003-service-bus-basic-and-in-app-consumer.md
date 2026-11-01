@@ -22,8 +22,9 @@ retried, and the shared Document Intelligence account allows 15 analyze requests
 Option 4, with the claim check of the AI-200 Service Bus module: the original stays in Blob Storage and the message carries
 only the invoice id. The queue `invoices` (Bicep, `infra/modules/data.bicep`) uses peek-lock with `lockDuration` PT1M, which
 `AutoLockRenewer` extends up to 300 s, `maxDeliveryCount` 5, a dead-letter queue, a 14-day time to live (the Basic maximum) and
-dead-lettering on expiry. The consumer runs four receivers per replica; with at most three replicas, twelve invoices are in
-flight, and each spends seconds inside one analyze request, far under 15 requests per second.
+dead-lettering on expiry. The consumer runs ten receivers per replica (four until 2026-11-01, see below); with at most
+three replicas, thirty invoices are in flight, and each spends seconds inside one analyze request, under 15 requests per
+second.
 
 **Basic, not Standard.** Standard adds duplicate detection, sessions and topics for a base unit of 0.0118 €/hour, 8.61 €/month
 (Retail Prices API, EUR, `swedencentral`, 2026-10-31), against 0.044 € per million operations on Basic. The consumer is
@@ -36,3 +37,18 @@ idempotent on the invoice's status and ETag, so duplicate detection would replac
 - The fifth delivery marks the invoice `failed` with its error type and dead-letters the message; production alerts on any
   dead-lettered message (`alert-folium-dead-letters`, a metric alert).
 - Basic has no private endpoints: they need Premium (ADR-009).
+
+## Change, 2026-11-01: four to ten receivers per replica
+
+The first staging load test (run 41293079362) gave a p95 time to ready of 41.4 s over normal, peak and soak on the doubles
+(REQ-11: under 30 s), and a 20-invoice batch through the real services took 56 s at p50 and 64 s at p95. With two replicas of
+four receivers, a batch ran in rounds of about 12 s on the doubles and 13 to 15 s on the real services, and the duplicate
+check made each invoice wait for earlier uploads still queued or processing. The replicas were idle meanwhile: peak CPU 0.13
+of 0.5 vCPU, because each invoice spends its time waiting on Document Intelligence and the model. Document Intelligence saw 1
+to 2 analyze submissions per second, against 15 for the account.
+
+The author raised the receivers to ten per replica in both environments (`CONSUMERS` in `app/main.py`), and the queue rule's
+`messageCount` to ten with it, so a 20-invoice batch runs in one round on two replicas and the scaler adds a replica
+per ten waiting messages. At most 20 invoices are in flight in staging and 30 in production (60 during a production canary,
+ADR-005); at about 7.5 s per analysis that is at most about 8 submissions per second, still under 15. The next load test is
+the proof; if CPU or memory becomes the limit, the receivers come down before the replicas go up.

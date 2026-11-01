@@ -28,7 +28,8 @@ for rollback (`maxInactiveRevisions` 5).
 
 - The canary's 10 % applies to HTTP requests only; queue messages go to whichever replica receives them. The canary watch
   reads server errors of the new revision; a consumer that fails shows as dead-lettered messages, which alert.
-- During a canary the two revisions together may run up to six replicas and 24 invoices in flight, still far under 15 analyze
-  requests per second; Document Intelligence 429s are retried by the SDK and then by redelivery.
+- During a canary the two revisions together may run up to six replicas and 60 invoices in flight (ten receivers each,
+  ADR-003), at most about 8 analyze submissions per second at 7.5 s per analysis, under 15;
+  Document Intelligence 429s are retried by the SDK and then by redelivery.
 - `load-test.yml` deactivates the stable revision while the revision with the doubles runs, so no load-test invoice reaches the
   real services through the stable revision's rule.

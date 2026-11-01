@@ -36,7 +36,7 @@ from app.workflow import CHECKPOINT_TYPES, Services, resume, step
 
 CLERK, LEAD, OID = "Invoice.Process", "Invoice.Approve", "http://schemas.microsoft.com/identity/claims/objectidentifier"
 TYPES = {b"%PDF-": "application/pdf", b"\xff\xd8\xff": "image/jpeg", b"\x89PNG\r\n\x1a\n": "image/png"}
-MAX_FILES, MAX_BYTES, CONSUMERS = 20, 10 * 1024 * 1024, 4
+MAX_FILES, MAX_BYTES, CONSUMERS = 20, 10 * 1024 * 1024, 10
 LISTED: dict[str, Any] = {"id": True, "sha256": True, "status": True, "findings": True, "data": BRIEF["data"]}
 
 
@@ -85,8 +85,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         history = CosmosHistoryProvider(container_client=box("conversations"))
         queue = await stack.enter_async_context(azure.bus.get_queue_sender(config.queue))
 
+        opening = asyncio.Lock()
+
         async def send(ids: list[str]) -> None:
-            await queue.send_messages([ServiceBusMessage(item, message_id=item) for item in ids])
+            async with opening:
+                await queue.send_messages([ServiceBusMessage(item, message_id=item) for item in ids], timeout=30)
 
         app.state.runtime = Runtime(store, workflow, send, assistant(chat, store, history), history)
         renewer = AutoLockRenewer(max_lock_renewal_duration=300)
@@ -261,7 +264,10 @@ async def chat(body: Ask, user: Clerk, rt: Rt) -> StreamingResponse:
     async def text() -> AsyncIterator[str]:
         try:
             async for update in stream:
-                yield update.text
+                fresh = [
+                    item.text or "" for item in update.contents if item.type == "text" and item.merge_mode != "replace"
+                ]
+                yield "".join(fresh)
         except ChatClientException:
             yield "The assistant is unavailable right now; try again in a minute."
 

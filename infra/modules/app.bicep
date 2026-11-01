@@ -18,6 +18,8 @@ param settings object
 
 var canary = { revisionName: 'ca-folium-${short}--${revisionSuffix}', weight: empty(stableRevision) ? 100 : 0, label: 'canary' }
 var regionCodes = { swedencentral: 'swc', spaincentral: 'spc' }
+@description('Production only (ADR-011): one warm replica Monday to Friday, 08:00 to 19:00 Madrid time.')
+var businessHours = { name: 'business-hours', custom: { type: 'cron', metadata: { timezone: 'Europe/Madrid', start: '0 8 * * 1-5', end: '0 19 * * 1-5', desiredReplicas: '1' } } }
 var issuer = '${az.environment().authentication.loginEndpoint}${tenant().tenantId}/v2.0'
 
 resource managedEnvironment 'Microsoft.App/managedEnvironments@2026-07-01' = {
@@ -72,13 +74,13 @@ resource app 'Microsoft.App/containerApps@2026-07-01' = {
       scale: {
         minReplicas: 0
         maxReplicas: maxReplicas
-        rules: [
+        rules: concat([
           { name: 'http', http: { metadata: { concurrentRequests: '20' } } }
           {
             name: 'queue'
-            custom: { type: 'azure-servicebus', metadata: { queueName: 'invoices', namespace: busName, messageCount: '4' }, identity: scaleIdentityId }
+            custom: { type: 'azure-servicebus', metadata: { queueName: 'invoices', namespace: busName, messageCount: '10' }, identity: scaleIdentityId }
           }
-        ]
+        ], short == 'prod' ? [businessHours] : [])
       }
     }
   }
