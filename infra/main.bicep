@@ -19,6 +19,9 @@ param budget int
 @description('Address that receives the budget and alert e-mails.')
 param alertEmail string
 param location string = resourceGroup().location
+@allowed(['swedencentral', 'spaincentral'])
+@description('Region of the Container Apps environment and the app only (ADR-013).')
+param appLocation string = 'spaincentral'
 @description('First month of the budgets, fixed so that a redeployment never changes it.')
 param budgetStartDate string = '2026-11-01'
 param sharedResourceGroup string = 'rg-aiplatform-shared-swc'
@@ -58,7 +61,7 @@ module monitor 'modules/monitor.bicep' = {
 module app 'modules/app.bicep' = {
   dependsOn: [sharedAccess]
   params: {
-    location: location, tags: tags, short: short, maxReplicas: maxReplicas, workspaceId: workspace.id, busName: data.outputs.busName
+    location: appLocation, tags: tags, short: short, maxReplicas: maxReplicas, workspaceId: workspace.id, busName: data.outputs.busName
     image: '${registry.properties.loginServer}/product-finance-folium@${digest}', registryServer: registry.properties.loginServer
     revisionSuffix: revisionSuffix, stableRevision: stableRevision, authClientId: authClientId, appIdentityId: appIdentity.id, scaleIdentityId: scaleIdentity.id
     settings: {

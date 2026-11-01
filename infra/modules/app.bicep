@@ -17,10 +17,11 @@ param workspaceId string
 param settings object
 
 var canary = { revisionName: 'ca-folium-${short}--${revisionSuffix}', weight: empty(stableRevision) ? 100 : 0, label: 'canary' }
+var regionCodes = { swedencentral: 'swc', spaincentral: 'spc' }
 var issuer = '${az.environment().authentication.loginEndpoint}${tenant().tenantId}/v2.0'
 
 resource managedEnvironment 'Microsoft.App/managedEnvironments@2026-07-01' = {
-  name: 'cae-folium-${short}-swc'
+  name: 'cae-folium-${short}-${regionCodes[location]}'
   location: location
   tags: tags
   properties: {

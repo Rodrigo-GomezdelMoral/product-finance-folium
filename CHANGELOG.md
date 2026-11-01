@@ -16,6 +16,7 @@ All notable changes to Folium are documented in this file. The format follows
   `release.yml` (verification, approval, 10 % canary watched for ten minutes, promotion or rollback) and `load-test.yml`;
   CI builds and lints the Bicep.
 - `docs/THREAT_MODEL.md`, `docs/OPERATIONS.md`, `docs/cost.md` and ADR-003 to ADR-011.
+- ADR-013: the Container Apps environment and the app in `spaincentral`, the data in `swedencentral`.
 
 - Product specification in `docs/PRODUCT.md`: the client, requirements REQ-01 to REQ-12 with acceptance criteria, the canonical
   invoice, the ERP export layout, KPIs and SLOs.

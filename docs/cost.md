@@ -1,6 +1,7 @@
 # Cost
 
-Estimates from the Retail Prices API (EUR, `swedencentral`, 2026-10-30 and 2026-10-31). Phase 7 measures the cost per invoice
+Estimates from the Retail Prices API (EUR, `swedencentral`, 2026-10-30 and 2026-10-31). The Container Apps environment
+runs in `spaincentral` (ADR-013), whose Container Apps meters have the same prices. Phase 7 measures the cost per invoice
 in staging, and the end of the build compares these figures with Cost Management per environment.
 
 ## Per environment
@@ -21,6 +22,7 @@ in staging, and the end of the build compares these figures with Cost Management
 | Cosmos DB serverless | 0.268 € per million RU |
 | Container Apps active vCPU | 0.000021 € per second, after the monthly free grant |
 | Log alert rule at 15 minutes | 0.44 € each a month |
+| Data transfer between `spaincentral` and `swedencentral` | 0.0176 € per GB; about 1 to 3 GB a month at client volume, under 0.10 € (ADR-013) |
 
 The shared base bills whatever Folium does: the registry (≈ 4.40 €/month) and, once Juriscope creates it, AI Search Basic
 (≈ 65 €/month). Neither is Folium's cost, and Folium does not use Search.

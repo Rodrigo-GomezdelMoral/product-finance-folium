@@ -83,8 +83,8 @@ on the client's real invoices is measured in staging through the field correctio
 ## 4. Data requirements
 
 - **Classification:** financial documents with personal data of sole traders (name, NIF, address, IBAN).
-- **Residency:** stored in `swedencentral`. `gpt-5-mini` is a Global deployment and may process outside the EU, so the IBAN
-  never reaches it (ADR-008, phase 6).
+- **Residency:** stored in `swedencentral`, processed by the app in `spaincentral` (ADR-013), both in the EU. `gpt-5-mini`
+  is a Global deployment and may process outside the EU, so the IBAN never reaches it (ADR-008, phase 6).
 - **Retention:** six years for accounting documents; erasure on request after that (REQ-12).
 - **Training:** none. No model is trained or fine-tuned; the evaluation data is synthetic and contains no real person.
 
