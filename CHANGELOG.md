@@ -6,6 +6,21 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-02
+
+The web client takes the common product shell, and a release whose changes are only in the web, the documents or the
+workflows no longer needs a new load test. The API is unchanged.
+
+### Changed
+
+- The web client's stylesheet and shell follow the common product layout: the user icon in the sidebar and in the
+  conversation, "Visitor" as the demo user's name, the role shown as "User", one "Working" line while a request runs, invoice processing steps drawn as status
+  lines, GitHub-flavoured Markdown in answers (`remark-gfm` 4.0.1), and the wordmark drawn at the common letter height.
+- `release.yml` job `verify` skips the `load-test` requirement when every path changed since the last release that reached
+  production (its `release.yml` run succeeded) matches `web/**`, `docs/**`, `.github/**` or `*.md`, and prints the paths and the decision (ADR-014). The staging
+  deployment on merge is still required.
+- The documents describe Folium only.
+
 ## [1.0.1] - 2026-11-02
 
 Release `v1.0.0` stopped before production: creating `cae-folium-prod-spc` failed with
@@ -135,6 +150,7 @@ First release: Folium runs in staging, measured against its SLAs, and is promote
 - A review could not resume when the save after an earlier resume had failed; resume now takes the latest checkpoint that
   holds the stored request.
 
-[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/releases/tag/v1.0.0
