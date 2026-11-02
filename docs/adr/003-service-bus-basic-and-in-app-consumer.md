@@ -6,7 +6,7 @@
 
 An upload must answer at once, while each invoice takes 10 to 30 seconds of Document Intelligence, Prompt Shields and the
 model. The month-end peak is about 150 invoices a day, in batches of up to 20. Work must survive a restart or a scale-in and be
-retried, and the shared Document Intelligence account allows 15 analyze requests per second for every product on it.
+retried, and the shared Document Intelligence account allows 15 analyze requests per second for all its callers together.
 
 ## Options
 

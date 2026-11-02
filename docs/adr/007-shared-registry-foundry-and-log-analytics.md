@@ -4,7 +4,7 @@
 
 ## Context
 
-The shared base in `rg-aiplatform-shared-swc` serves several products: the registry `craiplatformshared` (Basic, about
+The shared base in `rg-aiplatform-shared-swc` holds the registry `craiplatformshared` (Basic, about
 4.40 €/month whoever uses it), the Foundry account `fdry-aiplatform-shared-swc` with the `gpt-5-mini` deployment, Document
 Intelligence and Content Safety, and the workspace `log-aiplatform-shared-swc`.
 
@@ -28,6 +28,6 @@ environment sends its logs there through a diagnostic setting (destination `azur
 ## Consequences
 
 - Retention is the shared workspace's minimum (CO:10); Folium adds no workspace.
-- The shared deployment's 100K tokens per minute serve every product: the eval gate and the load tests run against staging
+- The shared deployment's 100K tokens per minute are shared with its other callers: the eval gate and the load tests run against staging
   with doubles or small suites.
 - The registry and, once it exists, AI Search bill whatever Folium does; `docs/cost.md` keeps them out of Folium's cost.
