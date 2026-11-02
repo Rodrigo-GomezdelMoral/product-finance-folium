@@ -12,31 +12,15 @@ param appIdentityId string
 @description('Identity of the queue scale rule only: lifecycle None, so the code can never obtain its tokens.')
 param scaleIdentityId string
 param busName string
-param workspaceId string
+@description('Container Apps environment the app joins: cae-folium-env, owned by production (ADR-013).')
+param environmentId string
 @description('Environment variables of the container.')
 param settings object
 
 var canary = { revisionName: 'ca-folium-${short}--${revisionSuffix}', weight: empty(stableRevision) ? 100 : 0, label: 'canary' }
-var regionCodes = { swedencentral: 'swc', spaincentral: 'spc' }
 @description('Production only (ADR-011): one warm replica Monday to Friday, 08:00 to 19:00 Madrid time.')
 var businessHours = { name: 'business-hours', custom: { type: 'cron', metadata: { timezone: 'Europe/Madrid', start: '0 8 * * 1-5', end: '0 19 * * 1-5', desiredReplicas: '1' } } }
 var issuer = '${az.environment().authentication.loginEndpoint}${tenant().tenantId}/v2.0'
-
-resource managedEnvironment 'Microsoft.App/managedEnvironments@2026-07-01' = {
-  name: 'cae-folium-${short}-${regionCodes[location]}'
-  location: location
-  tags: tags
-  properties: {
-    appLogsConfiguration: { destination: 'azure-monitor' }, workloadProfiles: [{ name: 'Consumption', workloadProfileType: 'Consumption' }], zoneRedundant: false
-  }
-}
-
-#disable-next-line use-recent-api-versions
-resource logs 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'to-shared-workspace'
-  scope: managedEnvironment
-  properties: { workspaceId: workspaceId, logs: [{ categoryGroup: 'allLogs', enabled: true }] }
-}
 
 resource app 'Microsoft.App/containerApps@2026-07-01' = {
   name: 'ca-folium-${short}'
@@ -44,7 +28,7 @@ resource app 'Microsoft.App/containerApps@2026-07-01' = {
   tags: tags
   identity: { type: 'UserAssigned', userAssignedIdentities: { '${appIdentityId}': {}, '${scaleIdentityId}': {} } }
   properties: {
-    environmentId: managedEnvironment.id
+    environmentId: environmentId
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Multiple'

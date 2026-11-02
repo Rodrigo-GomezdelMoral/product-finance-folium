@@ -104,8 +104,9 @@ Cosmos DB and queued in Service Bus; the consumer runs the invoice's workflow (e
 duplicates, request review) and saves its checkpoints in Cosmos DB, so a review resumes it on any replica. KEDA scales the
 app on HTTP requests and on the queue, from zero.
 
-The app and its environment run in `spaincentral`; data, telemetry and the shared AI services are in `swedencentral`
-([ADR-013](docs/adr/013-container-apps-environment-in-spain-central.md)).
+Staging and production run their own apps in Folium's one Container Apps environment, `cae-folium-env` in `italynorth`,
+owned by production; data, telemetry and the shared AI services are in `swedencentral`
+([ADR-013](docs/adr/013-one-container-apps-environment-per-product.md)).
 
 ## How it works
 
@@ -168,10 +169,10 @@ Cost Management per environment after the release.
 | Pillar | Applied | Trade-off accepted |
 |---|---|---|
 | Reliability | one queue with a dead-letter queue, retries with `Retry-After`, an idempotent consumer, checkpoints, probes, point-in-time restore drilled | no zone redundancy; cold DR |
-| Security | managed identities, local auth off, built-in sign-in with app roles, Prompt Shields, pinned dependencies and actions | no private endpoints, WAF or Defender plans |
+| Security | managed identities, local auth off, built-in sign-in with app roles, Prompt Shields, pinned dependencies and actions | no private endpoints, WAF or Defender plans; staging and production share one environment |
 | Cost | scale to zero, serverless Cosmos DB, Service Bus Basic, `max_tokens`, file and batch limits, budgets per environment | one business-hours replica in production for REQ-11 |
 | Operational excellence | Bicep with `what-if`, one image deployed by digest, canary release with rollback, KPI workbook | one operator |
-| Performance | KEDA on HTTP and queue, clients built once, vendor master cached | the app in `spaincentral`, the data in `swedencentral` |
+| Performance | KEDA on HTTP and queue, clients built once, vendor master cached | the apps in `italynorth`, the data in `swedencentral` |
 
 ## Deploy
 
