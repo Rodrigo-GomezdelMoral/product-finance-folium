@@ -6,7 +6,7 @@
 
 The first staging deployment stopped in ARM preflight with `MaxNumberOfRegionalEnvironmentsInSubExceeded`. Managed Environment
 Count is a quota per subscription and region (Learn, *Quotas for Azure Container Apps*, 2026-10-09). The `Microsoft.App`
-usages API read on 2026-10-31: 1 of 1 in `swedencentral`, taken by another product, and 0 of 5 in `spaincentral`. Phase 0
+usages API read on 2026-10-31: 1 of 1 in `swedencentral`, already taken, and 0 of 5 in `spaincentral`. Phase 0
 had read 15. Everything else was built for `swedencentral`: the resource groups, Cosmos DB, Blob Storage, Service Bus, the
 identities, Application Insights and the shared base (Foundry, registry, Log Analytics).
 
@@ -15,7 +15,7 @@ environment: `cae-folium-stg-spc` and `cae-folium-prod-spc`. Staging deployed. R
 `cae-folium-prod-spc` with the same error code. Read again on 2026-11-02, the subscription has two limits:
 
 - **5 environments per subscription.** ARM preflight of a bare environment answers *cannot have more than 5 Container App
-  Environments* (`MaxNumberOfGlobalEnvironmentsInSubExceeded`), and 5 exist across the portfolio's products. The usages
+  Environments* (`MaxNumberOfGlobalEnvironmentsInSubExceeded`), and 5 exist in the subscription. The usages
   API does not show this limit.
 - **1 environment per region.** The usages API reports `ManagedEnvironmentCount` with a limit of 1 in every region read:
   0 of 1 in `italynorth`, 3 of 1 in `spaincentral`.
@@ -52,8 +52,8 @@ permissions for Compute*, 2026-07-01).
 The environment lives with production because production's lifecycle governs it: removing or pausing staging never touches
 it, the staging principal can join it but not change it, and its settings change only through a reviewed release.
 
-Elevant, Juriscope and Trainyard follow the same pattern: one `cae-<product>-env` each, owned by production, in a region where
-the product has the regional slot. Four products then use 4 of the subscription's 5 environments.
+The product then takes one of the subscription's 5 environments, owned by production, in a region where the subscription still
+had its regional slot.
 
 Checked on 2026-11-02:
 

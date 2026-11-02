@@ -191,13 +191,13 @@ export function InvoiceCard({ id, user, onChange }: { id: string; user: User; on
       </h3>
       <ul className="steps">
         {steps.map((step, index) => (
-          <li key={index}>
-            <CircleCheck size={14} className="ok" aria-hidden /> {words(step.name)} · {seconds(step.at)} s
+          <li key={index} className="status">
+            <CircleCheck size={16} className="ok" aria-hidden /> {words(step.name)} · {seconds(step.at)} s
           </li>
         ))}
         {WORKING.includes(invoice.status) && (
-          <li>
-            <LoaderCircle size={14} className="spin" aria-hidden /> Processing
+          <li className="status">
+            <LoaderCircle size={16} className="spin" aria-hidden /> Processing
           </li>
         )}
       </ul>

@@ -134,7 +134,8 @@ once, an exported invoice's timeline, and the assistant's cited answers.
 | Alerts | none | availability, p95 ready, errors, dead letters |
 
 Every merge builds one image, deploys its digest to staging behind a canary label, checks health and runs a smoke test. A
-release checks that its commit was deployed and passed the load test, then promotes the same digest to production: 10 % of
+release checks that its commit was deployed and passed the load test (not needed when only the web, docs or workflows changed
+since the last release in production, ADR-014), then promotes the same digest to production: 10 % of
 traffic for ten minutes watching server errors, then 100 %, or a rollback. Rollback is a release of an earlier tag.
 
 **Load tests in staging** (`load-test.yml`, run 41299957986, 2026-11-01), with Document Intelligence and the model behind
@@ -210,7 +211,7 @@ the roles `Invoice.Process` and `Invoice.Approve`, assignment required.
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md): promotion, rollback, urgent patch, restore, alerts, incidents, load tests.
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) and [`docs/RESPONSIBLE_AI.md`](docs/RESPONSIBLE_AI.md).
 - [`docs/evaluation.md`](docs/evaluation.md): the evaluation gate, its datasets and results, and experiment 001.
-- [`docs/cost.md`](docs/cost.md) and [`docs/adr/`](docs/adr/), ADR-001 to ADR-013.
+- [`docs/cost.md`](docs/cost.md) and [`docs/adr/`](docs/adr/), ADR-001 to ADR-014.
 - [`CHANGELOG.md`](CHANGELOG.md) and the [latest release](https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/releases/latest).
 
 ## Author

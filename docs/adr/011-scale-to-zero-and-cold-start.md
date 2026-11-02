@@ -62,7 +62,7 @@ option 3 and still ends every phase at zero replicas.
 **Cost:** about 242 hours a month (11 hours on about 22 weekdays) of one 0.5 vCPU, 1 GiB replica at the idle rate while it
 waits, about 3 to 4 €/month: the build prompt's estimate. The Retail Prices API returned only the free-grant rows of the idle
 meters on 2026-11-01, so Cost Management confirms the figure after a month in production (`docs/cost.md`). The monthly free
-grant is per subscription and shared with other products, so it is not counted.
+grant is per subscription and shared with everything else in it, so it is not counted.
 
 **Load test, 2026-11-01 (run 41299957986):** with staging at zero to two replicas and no warm one, REQ-11's p95 was 24.2 s
 over normal, peak and soak and REQ-10 100 %, so scale to zero holds in staging. The 20 invoices through the real services

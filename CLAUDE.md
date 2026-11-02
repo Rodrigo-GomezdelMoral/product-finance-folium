@@ -115,7 +115,7 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   100K TPM and 100 RPM, `NoAutoUpgrade`, guardrail `guardrail-chat` (custom, based on `Microsoft.DefaultV2`); registry
   `craiplatformshared` (Basic, admin user off); workspace `log-aiplatform-shared-swc`.
 - **Quotas:** `gpt-5-mini` Global Standard 500K TPM in the region, 100K used. Document Intelligence S0: 15 analyze and 50 get
-  requests per second per resource, shared by every product on the account. Cosmos DB, Service Bus, Storage and Key Vault: no
+  requests per second per resource, shared by every caller of the account. Cosmos DB, Service Bus, Storage and Key Vault: no
   account in the subscription yet, the region open to Cosmos DB, every name in the build prompt available, no soft-deleted vault.
   Container Apps managed environments: 15 in the region, none used, so the two environments of the build prompt's
   `Environments` table fit as designed. Wrong: ARM preflight in phase 7 and at the first release found 5 environments per subscription
@@ -432,7 +432,7 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   the redirect URI. Open risk, measured by the two load tests below: with 0 to 2 replicas of 4 consumers and about 12 s per doubled invoice, the last
   invoices of a 20-file peak batch can pass 30 s and take the combined p95 over the SLA; ADR-011's fallbacks then apply.
 - **The environment and the app in `spaincentral` (ADR-013, superseded by the next entry).** The first staging deployment failed in preflight with
-  `MaxNumberOfRegionalEnvironmentsInSubExceeded`: 1 of 1 environments used in `swedencentral` by another product, 0 of 5 in
+  `MaxNumberOfRegionalEnvironmentsInSubExceeded`: 1 of 1 environments already used in `swedencentral`, 0 of 5 in
   `spaincentral`. The author moved only the environment and the app: `appLocation` in `main.bicep` (default `spaincentral`),
   environments `cae-folium-<env>-spc`; resource groups, data, identities, Application Insights and the shared base stay in
   `swedencentral`. Each data call adds the 50 ms round trip (about 1 to 1.5 s per invoice), which the load tests measure.
@@ -446,7 +446,7 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   deletes `ca-folium-stg` and `cae-folium-stg-spc`, deploys the module with production's parameters, and grants the
   staging CI principal a custom role with `managedEnvironments/read` and `join/action` on the environment only.
   `validate` and `what-if` of `main.bicep` miss quota errors because modules take runtime values: preflight a module
-  alone with concrete values. Elevant, Juriscope and Trainyard follow the same pattern.
+  alone with concrete values.
 
 ## Verified names (installed wheels, 2026-10-30 and 2026-10-31)
 
@@ -529,3 +529,9 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   with `BadArgumentError` and was not pursued.
 - **Release:** `CHANGELOG.md` cut as `1.0.0` dated 2026-11-01. `release.yml` requires `load-test` `success` on the tagged
   commit, so the load test runs again on the merge of `feature/release` before the release is published.
+- **Release gate for web-only changes (ADR-014, author's decision of 2026-11-02).** `verify` always requires a successful
+  `deploy.yml` push run on the tagged commit; it skips the `load-test` requirement only when every path changed since the
+  last earlier release that reached production (published, not a pre-release, with a successful `release.yml`
+  run; a failed release never reached production) matches `web/**`, `docs/**`, `.github/**` or
+  `*.md`, and prints the paths and the decision. No such release, or any other path, requires the load test. The load
+  test measures the API's latency; the web, the documents and the workflows do not change the API at runtime.

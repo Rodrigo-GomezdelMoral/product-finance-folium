@@ -1,11 +1,11 @@
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-600.css";
 import "./styles.css";
-import { ArrowUp, Check, Copy, FileText, LoaderCircle, LogOut, Menu, MessageSquare, Paperclip } from "lucide-react";
-import { Search, SquarePen, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowUp, Check, CircleUserRound, Copy, FileText, LoaderCircle, LogOut, Menu, MessageSquare, Paperclip, Search, SquarePen, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api, DEMO, LEAD, replay, RUNS, type Batch, type Conversation, type Invoice, type Run, type User } from "./api";
 import { InvoiceCard } from "./Invoice";
 
@@ -33,7 +33,7 @@ function Answer({ text, at }: { text: string; at: number }) {
   return (
     <>
       <div className="answer">
-        <Markdown disallowedElements={["img"]} urlTransform={(url) => (url.startsWith("#") ? url : null)}>
+        <Markdown remarkPlugins={[remarkGfm]} disallowedElements={["img"]} urlTransform={(url) => (url.startsWith("#") ? url : null)}>
           {body}
         </Markdown>
       </div>
@@ -128,14 +128,15 @@ function App() {
       const response = await api.chat(text, conversation);
       const about = response.headers.get("X-Conversation") ?? undefined;
       const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
-      let shown: Entry = { kind: "answer", text: "", about };
-      if (put(shown)) setConversation(about);
+      let shown: Entry | undefined;
+      if (put()) setConversation(about);
       for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
         if (!put()) return reader.cancel();
-        const before: Entry = shown;
-        const next: Entry = { kind: "answer", text: (before as { text: string }).text + chunk.value, about };
+        const before = shown;
+        const next: Entry = { kind: "answer", text: (before?.kind === "answer" ? before.text : "") + chunk.value, about };
+        if (before) setEntries((list) => list.map((entry) => (entry === before ? next : entry)));
+        else put(next);
         shown = next;
-        setEntries((list) => list.map((entry) => (entry === before ? next : entry)));
       }
       refresh();
     });
@@ -151,7 +152,7 @@ function App() {
   function play(run: Run) {
     reset(run.title);
     replay(run);
-    setUser(run.user);
+    setUser({ ...run.user, name: "Visitor" });
     const start = {
       upload: () => upload((run.files ?? []).map((name) => new File([], name)), run.prompt),
       ask: () => ask(run.prompt),
@@ -190,7 +191,6 @@ function App() {
           }),
         ],
       ];
-  const initial = (user.name || "?").charAt(0).toUpperCase();
 
   return (
     <div className="app">
@@ -232,12 +232,10 @@ function App() {
             ))}
           </nav>
           <div className="me">
-            <span className="avatar" aria-hidden>
-              {initial}
-            </span>
+            <CircleUserRound className="avatar" size={28} strokeWidth={1.5} aria-hidden />
             <span>
               {user.name || "Signed out"}
-              <small>{lead ? "Accounting lead" : user.roles.length ? "Clerk" : DEMO ? "Demo" : "No Folium role"}</small>
+              <small>{user.roles.length ? "User" : DEMO ? "Demo" : "No Folium role"}</small>
             </span>
             {!DEMO && (
               <a className="icon" href="/.auth/logout" aria-label="Sign out">
@@ -260,23 +258,21 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="thread" role="log" aria-label="Conversation" key={generation.current} ref={thread} tabIndex={-1}>
+            <div className="thread" role="log" aria-label="Conversation" aria-busy={busy} key={generation.current} ref={thread} tabIndex={-1}>
               {entries.map((entry, index) =>
                 entry.kind === "user" ? (
                   <div className="turn user" key={index}>
-                    <span className="avatar" aria-hidden>
-                      {initial}
-                    </span>
+                    <CircleUserRound className="avatar" size={28} strokeWidth={1.5} aria-hidden />
                     <p>
                       {entry.text}
                       {entry.files && <small> {entry.files.join(", ")}</small>}
                     </p>
                   </div>
                 ) : (
-                  <section className="turn product" key={index} aria-label="Folium" aria-busy={entry.kind === "answer" && busy && index === entries.length - 1}>
+                  <section className="turn product" key={index} aria-label="Folium">
                     <p className="name">Folium</p>
                     {entry.kind === "error" && <p className="status error" role="alert">{entry.text}</p>}
-                    {entry.kind === "answer" && (entry.text ? <Answer text={entry.text} at={index} /> : <p className="status"><LoaderCircle size={16} className="spin" aria-hidden /> Thinking</p>)}
+                    {entry.kind === "answer" && <Answer text={entry.text} at={index} />}
                     {entry.kind === "invoices" && entry.ids.map((id) => <InvoiceCard key={id} id={id} user={user} onChange={later} />)}
                     {entry.kind === "export" && (
                       <p>
@@ -287,6 +283,11 @@ function App() {
                     {entry.kind !== "error" && <Actions text={entry.kind === "answer" ? entry.text : undefined} about={entry.kind === "answer" ? (entry.about ?? "answer") : entry.kind === "export" ? entry.batch.id : entry.ids.join(",")} />}
                   </section>
                 ),
+              )}
+              {busy && (
+                <p className="status">
+                  <LoaderCircle size={16} className="spin" aria-hidden /> Working
+                </p>
               )}
               <div ref={end} />
             </div>

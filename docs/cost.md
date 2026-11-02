@@ -25,7 +25,7 @@ in staging, and the end of the build compares these figures with Cost Management
 | Log alert rule at 15 minutes | 0.44 € each a month |
 | Data transfer between `italynorth` and `swedencentral` | 0.018 € per GB (2026-11-02); about 1 to 3 GB a month at client volume, under 0.10 € (ADR-013) |
 
-The shared base bills whatever Folium does: the registry (≈ 4.40 €/month) and, once Juriscope creates it, AI Search Basic
+The shared base bills whatever Folium does: the registry (≈ 4.40 €/month) and, once it exists, the shared AI Search Basic
 (≈ 65 €/month). Neither is Folium's cost, and Folium does not use Search.
 
 ## What bills while stopped

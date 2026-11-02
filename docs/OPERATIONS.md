@@ -25,7 +25,9 @@ it, and the staging app joins it with read and join rights only. An outage in ei
   on that label, 100 % of traffic, the previous revision deactivated, and a smoke test through the API as the staging CI
   principal (`/healthz`, `/api/me`, `/api/invoices`).
 - **A release** `vX.Y.Z`: job `verify` (no Azure) checks that the tag's commit has a successful `deploy.yml` run and a
-  `load-test` commit status of `success`. Job `promote` (environment `production`, the author approves) resolves the commit's
+  `load-test` commit status of `success`. The load test is not required when every path changed since the last release that reached
+  production (published, with a successful `release.yml` run) matches `web/**`, `docs/**`, `.github/**` or `*.md`; the job prints each changed path and the decision, and with no
+  such release the load test is required (ADR-014). Job `promote` (environment `production`, the author approves) resolves the commit's
   image tag to the same digest staging received, deploys it at 0 %, checks health on the label, sends 10 %, reads the new
   revision's server errors (Azure Monitor `Requests`, filtered by revision and `5xx`) every two minutes for ten minutes, then
   sends 100 % and deactivates the old revision, or rolls back and fails.
