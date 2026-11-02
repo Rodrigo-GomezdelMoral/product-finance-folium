@@ -6,6 +6,26 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-02
+
+Release `v1.0.0` stopped before production: creating `cae-folium-prod-spc` failed with
+`MaxNumberOfRegionalEnvironmentsInSubExceeded`, because the subscription allows 5 Container Apps environments in all and 1
+per region. This release reaches production with one environment for the whole product.
+
+### Changed
+
+- ADR-013 amended: one Container Apps environment per product, `cae-folium-env` in `italynorth`, declared once in
+  `infra/modules/environment.bicep` and created only by the production deployment in `rg-folium-prod-swc`; the staging
+  deployment joins it as an existing resource. Both apps keep their names and resource groups and run in the environment's
+  region (`environmentLocation`); data stays in `swedencentral`. `appLocation` and the region codes are gone.
+- The staging CI principal gets read and join rights on the environment only, through a custom role.
+- ADR-008, `README.md`, `docs/OPERATIONS.md` (staging at zero leaves production untouched; how to recreate the
+  environment), `docs/THREAT_MODEL.md`, `docs/cost.md`, `docs/RESPONSIBLE_AI.md` and `CLAUDE.md` follow.
+
+### Removed
+
+- `cae-folium-stg-spc`, replaced by `cae-folium-env`.
+
 ## [1.0.0] - 2026-11-01
 
 First release: Folium runs in staging, measured against its SLAs, and is promoted to production by this release.
@@ -115,5 +135,6 @@ First release: Folium runs in staging, measured against its SLAs, and is promote
 - A review could not resume when the save after an earlier resume had failed; resume now takes the latest checkpoint that
   holds the stored request.
 
-[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/releases/tag/v1.0.0

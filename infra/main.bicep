@@ -19,9 +19,10 @@ param budget int
 @description('Address that receives the budget and alert e-mails.')
 param alertEmail string
 param location string = resourceGroup().location
-@allowed(['swedencentral', 'spaincentral'])
-@description('Region of the Container Apps environment and the app only (ADR-013).')
-param appLocation string = 'spaincentral'
+@description('Region of cae-folium-env, the Container Apps environment that staging and production share, and of both apps (ADR-013).')
+param environmentLocation string = 'italynorth'
+@description('Resource group of cae-folium-env: production owns it, staging joins it (ADR-013).')
+param environmentGroup string = 'rg-folium-prod-swc'
 @description('First month of the budgets, fixed so that a redeployment never changes it.')
 param budgetStartDate string = '2026-11-01'
 param sharedResourceGroup string = 'rg-aiplatform-shared-swc'
@@ -34,6 +35,7 @@ param model string = 'gpt-5-mini'
 var short = env == 'staging' ? 'stg' : 'prod'
 var tags = { project: 'product-finance-folium', environment: env, owner: 'Rodrigo-GomezdelMoral' }
 var shared = resourceGroup(sharedResourceGroup)
+var environmentName = 'cae-folium-env'
 
 resource registry 'Microsoft.ContainerRegistry/registries@2025-11-01' existing = { name: registryName, scope: shared }
 resource foundry 'Microsoft.CognitiveServices/accounts@2026-07-01' existing = { name: foundryName, scope: shared }
@@ -58,10 +60,17 @@ module monitor 'modules/monitor.bicep' = {
   }
 }
 
+module containerEnvironment 'modules/environment.bicep' = if (env == 'production') {
+  scope: resourceGroup(environmentGroup)
+  params: { name: environmentName, location: environmentLocation, tags: union(tags, { environment: 'shared' }), workspaceId: workspace.id }
+}
+
+resource sharedEnvironment 'Microsoft.App/managedEnvironments@2026-07-01' existing = { name: environmentName, scope: resourceGroup(environmentGroup) }
+
 module app 'modules/app.bicep' = {
-  dependsOn: [sharedAccess]
+  dependsOn: [sharedAccess, containerEnvironment]
   params: {
-    location: appLocation, tags: tags, short: short, maxReplicas: maxReplicas, workspaceId: workspace.id, busName: data.outputs.busName
+    location: environmentLocation, environmentId: sharedEnvironment.id, tags: tags, short: short, maxReplicas: maxReplicas, busName: data.outputs.busName
     image: '${registry.properties.loginServer}/product-finance-folium@${digest}', registryServer: registry.properties.loginServer
     revisionSuffix: revisionSuffix, stableRevision: stableRevision, authClientId: authClientId, appIdentityId: appIdentity.id, scaleIdentityId: scaleIdentity.id
     settings: {

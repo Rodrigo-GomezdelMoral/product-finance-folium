@@ -5,7 +5,7 @@
 ## Context
 
 Folium's data rests in `swedencentral`: Cosmos DB, Blob Storage and Service Bus. The app that processes it runs in
-`spaincentral` ([ADR-013](013-container-apps-environment-in-spain-central.md)), so storage and the app's processing stay in the EU.
+`italynorth` ([ADR-013](013-one-container-apps-environment-per-product.md)), so storage and the app's processing stay in the EU.
 The shared `gpt-5-mini` deployment (`2025-08-07`) is Global Standard, so a request may be processed in any region of
 Azure's global capacity. A Data Zone EU deployment keeps inference in the EU for about 10 % more per token, and none exists
 in the shared base.

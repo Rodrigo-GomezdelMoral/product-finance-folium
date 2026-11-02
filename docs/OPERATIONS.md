@@ -10,13 +10,15 @@ met both (p95 ready 24.2 s, availability 100 %), so staging may be promoted.
 | | Staging | Production |
 |---|---|---|
 | Resource group | `rg-folium-stg-swc` | `rg-folium-prod-swc` |
-| App, in `spaincentral` (ADR-013) | `ca-folium-stg` in `cae-folium-stg-spc`, 0 to 2 replicas | `ca-folium-prod` in `cae-folium-prod-spc`, 0 to 3 replicas |
+| App, in `italynorth` (ADR-013) | `ca-folium-stg`, 0 to 2 replicas | `ca-folium-prod`, 0 to 3 replicas |
+| Container Apps environment | joins `cae-folium-env` | owns `cae-folium-env`, in `rg-folium-prod-swc` |
 | Data | `cosmos-folium-stg-swc`, `stfoliumstgswc`, `sb-folium-stg-swc` | `cosmos-folium-prod-swc`, `stfoliumprodswc`, `sb-folium-prod-swc` |
 | Telemetry | `appi-folium-stg-swc`, workbook | `appi-folium-prod-swc`, workbook, `ag-folium-prod-swc` and four alerts |
 | Changed by | `deploy.yml`, on every merge to `main` | `release.yml`, on a published release, after the author's approval |
 
-The resource groups, data and telemetry are in `swedencentral`. The app runs in `spaincentral` because the subscription's
-one Container Apps environment in `swedencentral` is taken. An outage in either region stops the service (ADR-013).
+The resource groups, data and telemetry are in `swedencentral`. The subscription allows 5 Container Apps environments in
+all and 1 per region, so Folium has one, `cae-folium-env` in `italynorth`: the production deployment creates and changes
+it, and the staging app joins it with read and join rights only. An outage in either region stops the service (ADR-013).
 
 - **Every merge** builds one image on the runner, tagged `<yyyymmdd>-main-<sha7>`, pushes it to `craiplatformshared`, and
   `deploy.yml` deploys its digest to staging: `what-if`, then a new revision at 0 % behind the `canary` label, a health check
@@ -95,7 +97,15 @@ The author is the only operator, so every role is the author's; the order matter
 - **Pause production without deleting:** disable the three log alerts (`az monitor scheduled-query update --disabled true`)
   and the deploying workflows (`gh workflow disable deploy.yml`, `release.yml`, `load-test.yml`). What still bills: Cosmos DB
   and blob storage (cents), and the business-hours replica; to stop it too, `az containerapp revision deactivate` the active revision.
-- **Remove an environment:** delete its resource group's resources; the shared base is untouched.
+- **Staging at zero or removed** never touches production: stop or delete `ca-folium-stg` and the resources of
+  `rg-folium-stg-swc`; `cae-folium-env` is in `rg-folium-prod-swc` and stays.
+- **Remove production:** deleting the resources of `rg-folium-prod-swc` also deletes `cae-folium-env` and stops staging
+  until the environment is recreated. The shared base is untouched.
+- **Recreate the environment:** run `../_scripts/product-finance-folium/06-environment.sh`, which deletes the first
+  decision's `cae-folium-stg-spc` and its app if present, deploys `infra/modules/environment.bicep` with production's
+  parameters and grants the staging CI principal its join role again; then deploy staging (`deploy.yml`) and production (`release.yml`) and run `04-signin.sh`
+  after each, because the apps' host names change. To move region, change `environmentLocation` and the script's
+  `LOCATION` together; while the subscription holds 5 environments, the old one must be deleted first.
 
 ## Model lifecycle
 
