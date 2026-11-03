@@ -6,6 +6,12 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-03
+
+The documents record the production walk-through of `v1.0.4` and the rollback rehearsed in staging. Only `docs/`,
+`README.md` and this file changed, so this release needs no load test (ADR-014). The API and the infrastructure are
+unchanged.
+
 ### Changed
 
 - `docs/OPERATIONS.md`: the production walk-through of `v1.0.4` on 2026-11-03, each Must with what happened in production;
@@ -203,7 +209,8 @@ its regional Container Apps environment hit the subscription's limit. `v1.0.1` w
 - A review could not resume when the save after an earlier resume had failed; resume now takes the latest checkpoint that
   holds the stored request.
 
-[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.4...HEAD
+[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.1...v1.0.2
