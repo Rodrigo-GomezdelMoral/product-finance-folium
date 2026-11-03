@@ -6,6 +6,35 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-11-03
+
+The close-out of the product's validation. The workbook's field correction rate follows its definition, telemetry names the
+serving revision, and the documents state the production status, the measured figures and the open limitations as they are.
+The API is unchanged; `infra/` changed, so this release needs a passing load test on its commit (ADR-014 does not apply).
+
+### Changed
+
+- The workbook's field correction rate counts corrected and extracted fields of approved invoices only, as `docs/PRODUCT.md`
+  defines it; it divided by the fields of every ready invoice, so load tests drove it to 0.00 %. On staging's data of 2026-11-03
+  the new query reads 1.42 % (2 corrected of 141 fields on 8 approved invoices).
+- Each revision sets `OTEL_SERVICE_NAME` to the app's name and `service.version` to its own revision name, so Application
+  Insights shows the app in `cloud_RoleName` and the serving revision in `application_Version`; `load-test.yml` sets the
+  load revision's name the same way.
+- `lucide-react` 1.59.0 to 1.65.0 in the web client (Dependabot).
+- `docs/OPERATIONS.md`: the status on 2026-11-03; how to seed production's vendor master, which is still empty; how to tell
+  which revision served a request; `v1.0.0` is never a rollback target and the fast path's time is not measured yet; the load
+  test of `v1.0.1` on `cae-folium-env` (run 3) beside runs 1 and 2, now named as history of the earlier environment; the cold
+  start on `cae-folium-env`; the DORA figures; the Advisor review of 2026-11-02; and a known limitations table.
+- `README.md`: the same status, run 3's figures, the cold start, the DORA figures and the Lighthouse accessibility score of
+  the published demo (100, 2026-11-03).
+- `docs/PRODUCT.md`: the field correction rate's event names the `fields` dimension and the approved-invoice filter.
+
+### Fixed
+
+- The model retirement date: `gpt-5-mini` `2025-08-07` retires on 2027-07-13, not 2027-02-09 (Microsoft Learn and the
+  account's `list-models`), in `docs/OPERATIONS.md` and `docs/RESPONSIBLE_AI.md`; the migration plan moves to the end of May
+  2027.
+
 ## [1.0.3] - 2026-11-02
 
 The web client's sidebar keeps its top and its user block in place, and its sizes match the common product layout. The
@@ -55,6 +84,9 @@ per region. This release reaches production with one environment for the whole p
 ## [1.0.0] - 2026-11-01
 
 First release: Folium runs in staging, measured against its SLAs, and is promoted to production by this release.
+
+This release never reached production: it was published on 2026-11-02, and `release.yml` failed in `promote` when creating
+its regional Container Apps environment hit the subscription's limit. `v1.0.1` was the first release in production.
 
 ### Added
 
@@ -161,7 +193,9 @@ First release: Folium runs in staging, measured against its SLAs, and is promote
 - A review could not resume when the save after an earlier resume had failed; resume now takes the latest checkpoint that
   holds the stored request.
 
-[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/releases/tag/v1.0.0

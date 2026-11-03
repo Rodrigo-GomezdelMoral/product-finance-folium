@@ -1,9 +1,11 @@
 # Operations
 
-How Folium is promoted, watched, restored and paid for. Status on 2026-11-01: staging is deployed through `deploy.yml`
-and was used live through the API and the web; the first load test, the cold start, the restore drill and the Advisor review
-are recorded below. The first load test did not meet REQ-10 or REQ-11; after its fixes and the capacity change, the second
-met both (p95 ready 24.2 s, availability 100 %), so staging may be promoted.
+How Folium is promoted, watched, restored and paid for. Status on 2026-11-03: `v1.0.0` stopped before production, because
+creating its regional Container Apps environment hit the subscription's limit; `v1.0.1` was the first release in production,
+and `v1.0.2` and `v1.0.3` followed, each promoted by `release.yml` after the author's approval. Staging is deployed on every
+merge and was used live through the API and the web. Production has served only health probes so far (1,891 `GET /healthz`
+and no KPI event in 30 days), and its vendor master must be seeded before the first invoice (below). The load tests, cold
+starts, restore drill, DORA figures and Advisor reviews are recorded below, and the known limitations close this file.
 
 ## Environments and promotion
 
@@ -32,16 +34,34 @@ it, and the staging app joins it with read and join rights only. An outage in ei
   revision's server errors (Azure Monitor `Requests`, filtered by revision and `5xx`) every two minutes for ten minutes, then
   sends 100 % and deactivates the old revision, or rolls back and fails.
 - **Nothing is rebuilt per environment.** The digest in production is the digest that ran in staging.
+- **Which revision served a request:** the Azure Monitor `Requests` metric of the app split by `revisionName`, as the canary
+  reads it. From `v1.0.4` on, Application Insights also names the app in `cloud_RoleName` and the serving revision in
+  `application_Version` (`OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES`, set per revision by `infra/modules/app.bicep`);
+  `cloud_RoleInstance` is a replica, not a revision.
+
+## Production vendor master
+
+The app reads the `vendors` container once at start-up and matches every invoice against it (REQ-03); with an empty master,
+every invoice gets an `unknown_vendor` finding and goes to the lead. Staging was seeded by the operator with `ops/seed.py`
+(40 vendors from `data/vendors.json`). Production has no human data role by design, so the author seeds it once with a script
+outside this repository: a temporary Cosmos DB Built-in Data Contributor role for the operator on `cosmos-folium-prod-swc`,
+`python -m ops.seed` with the app's own `COSMOS_ENDPOINT`, `STORAGE` and `SERVICEBUS` values kept in shell variables, the
+role removed, and the `DocumentCount` metric of `vendors` read back at 40. Seed before a release; after one, restart the
+active revision (`az containerapp revision restart`) so its replica reads the seeded master. On 2026-11-03 every production
+container holds 0 documents.
 
 ## Rollback
 
 - **Production:** run `release.yml` from `main` with `workflow_dispatch` and an earlier release tag. It checks out that tag's
-  commit, so the infrastructure and the image match, and promotes its digest with the same canary.
+  commit, so the infrastructure and the image match, and promotes its digest with the same canary. `v1.0.0` is never a
+  target: its Bicep creates a regional environment of its own for production instead of `cae-folium-env` (ADR-013), which
+  is how its release failed; the earliest target is `v1.0.1`.
 - **Staging:** run `deploy.yml` with `workflow_dispatch` and an image tag (`<yyyymmdd>-main-<sha7>`); it deploys that digest
   without building.
 - **Fastest path:** an earlier revision is kept inactive (up to five).
   `az containerapp revision activate` and `az containerapp ingress traffic set --revision-weight <old>=100 <new>=0` restore it
-  in about a minute; the next release brings the Bicep back in line.
+  without a deployment; the next release brings the Bicep back in line. Its time, cold start included, is not measured yet:
+  the rollback drill after `v1.0.4` records it.
 
 ## Urgent patch
 
@@ -111,15 +131,30 @@ The author is the only operator, so every role is the author's; the order matter
 
 ## Model lifecycle
 
-`gpt-5-mini` `2025-08-07` is pinned with `NoAutoUpgrade` and retires on 2027-02-09. By December 2026: evaluate the successor
-with the full suite against the baseline, change `FOUNDRY_MODEL` in the Bicep through a PR (the gate runs), release.
+`gpt-5-mini` `2025-08-07` is pinned with `NoAutoUpgrade` and retires on **2027-07-13** (Microsoft Learn, *Model retirement
+schedule*, read on 2026-11-02; the account's `az cognitiveservices account list-models` `deprecation.inference`, read on
+2026-11-03). With `NoAutoUpgrade` the deployment stops answering at retirement instead of moving to the replacement.
+Microsoft names the official replacement about 90 to 120 days before retirement, so between mid-March and mid-April 2027,
+and sends a retirement notice at least 60 days before (Learn, *Foundry Models lifecycle and support policy*). Plan: by the
+end of April 2027, evaluate the named replacement with the full suite against the baseline (candidates may be tried earlier),
+change `FOUNDRY_MODEL` in the Bicep through a PR (the gate runs), and release by the end of May 2027, six weeks before
+retirement.
 
 ## DORA metrics
 
 Read from GitHub Actions runs (`gh run list --workflow <file> --json conclusion,createdAt,updatedAt,headSha`):
 deployment frequency (successful `release.yml` runs a week), lead time for changes (merge commit to the end of the successful
 `deploy.yml` run, and to production for releases), change failure rate (`release.yml` runs that rolled back over all
-releases) and time to restore (from a failed or rolled-back release to the next successful one). Measured from phase 7.
+releases) and time to restore (from a failed or rolled-back release to the next successful one). Read on 2026-11-03:
+
+| Metric | Value |
+|---|---|
+| Deployment frequency, production | 3 successful releases in two days: `v1.0.1` and `v1.0.2` on 2026-11-02, `v1.0.3` on 2026-11-03 |
+| Lead time, merge to production | `v1.0.1` 1 h 23 min, `v1.0.2` 20 min, `v1.0.3` 20 min, each with the approval and the ten-minute canary |
+| Lead time, merge to staging | 3.5 to 4.5 minutes over the last four merges |
+| Change failure rate | 1 of 4 release runs (25 %): `v1.0.0` failed in `promote` before production, with no production impact |
+| Time to restore | 9 h 46 min, from the `v1.0.0` failure to the `v1.0.1` success |
+| Staging deployments | 10 `deploy.yml` runs on merges, 2 failed (2026-10-31) |
 
 ## Load tests
 
@@ -136,6 +171,11 @@ replicas, CPU and memory are maxima over the whole run on the doubles.
 
 | Run | Scenario | p50 | p95 | p99 | Requests/s | Errors | Users | Queue | Replicas | CPU | Memory |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| 3, 2026-11-02 | normal, doubles | 16 s | 29 s | 29 s | 0.84 | 0 of 25 uploads | 5 | 25 | 2 | 0.20 vCPU | 0.49 GB |
+| 3, 2026-11-02 | peak, doubles | 27 s | 40 s | 41 s | 2.70 | 0 | 60 invoices in 3 batches | 25 | 2 | 0.20 vCPU | 0.49 GB |
+| 3, 2026-11-02 | soak 30 min, doubles | 16 s | 17 s | 17 s | 0.73 | 0 of 150 uploads | 5 | 25 | 2 | 0.20 vCPU | 0.49 GB |
+| 3, 2026-11-02 | stress, doubles | 16 s | 27 s | 30 s | 8.75 | 1 of 5,376 requests (a status read), 0 of 583 uploads | ramp, 10 a minute, stopped at about 100 | 25 | 2 | 0.20 vCPU | 0.49 GB |
+| 3, 2026-11-02 | 20 invoices, real services | 46 s | 51 s | 51 s | 2.02 | 0 | 1 batch | | | | |
 | 2, 2026-11-01 | normal, doubles | 16 s | 30 s (max 29.6 s) | 30 s | 0.83 | 0 of 25 uploads | 5 | 22 | 2 | 0.18 vCPU | 0.49 GB |
 | 2, 2026-11-01 | peak, doubles | 27 s | 41 s | 41 s | 2.83 | 0 | 60 invoices in 3 batches | 22 | 2 | 0.18 vCPU | 0.49 GB |
 | 2, 2026-11-01 | soak 30 min, doubles | 16 s | 16 s | 17 s | 0.73 | 0 of 150 uploads, no invoice failed | 5 | 22 | 2 | 0.18 vCPU | 0.49 GB |
@@ -146,6 +186,18 @@ replicas, CPU and memory are maxima over the whole run on the doubles.
 | 1, 2026-11-01 | soak 30 min, doubles | 14 s | 31 s | 73 s | 0.70 | 15 of 150 uploads `503`, 1 invoice failed | 5 | 16 | 2 | 0.13 vCPU | 0.52 GB |
 | 1, 2026-11-01 | stress, doubles | 16 s | 20 s | 20 s | 3.70 | 3 of 110 uploads `503` | ramp, 10 a minute | 16 | 2 | 0.13 vCPU | 0.52 GB |
 | 1, 2026-11-01 | 20 invoices, real services | 56 s | 64 s | 64 s | 2.44 | 0 | 1 batch | | 1 to 2 | | |
+
+**Run 3 (41494700777, commit `f92f034`, released as `v1.0.1`), on `cae-folium-env`, verdict 2026-11-02: REQ-10 and REQ-11
+met.** Over normal, peak and soak, Application Insights gives a p95 of `invoice_ready` of **24.2 s** over 240 invoices and an
+availability of **100 %**; the workflow set `load-test` to `success` on the tested commit. These are the figures of the
+environment that runs today. One status read failed in stress (1 of 5,376 requests, 0.02 %) and no upload failed; the
+dead-letter queue's maximum stayed at run 1's two messages. Peak CPU was 0.20 of 0.5 vCPU, memory under 0.5 GB, two
+replicas. The real-services batch's upload was answered after 18 s, because the restored stable revision started from zero.
+`v1.0.2` and `v1.0.3` changed only web, document and workflow paths and ran no load test (ADR-014). Both gates measure all
+hours of the run, not REQ-10's business-hours window.
+
+Runs 1 and 2 ran on the earlier staging environment, `cae-folium-stg-spc` in `spaincentral`, removed with `v1.0.1`
+(ADR-013); they are kept as history.
 
 **Run 2 (41299957986, commit `4785e17`), verdict 2026-11-01: REQ-10 and REQ-11 met, promotable.** Over normal, peak and
 soak, Application Insights gives a p95 of `invoice_ready` of **24.2 s** (REQ-11: under 30 s; SLO target under 25 s) and an
@@ -180,7 +232,9 @@ messages were dead-lettered. The workflow set `load-test` to `failure` on the te
 Measured on 2026-11-01 with staging at zero replicas (ADR-011): the first upload was answered after **35.3 s** (15 s of
 platform scheduling, 1.5 s to create the container, 13 s until the second startup probe, about 6 s not broken down) and its invoice was ready 13.3 s
 later, about **49 s** from the click. Warm uploads were answered in 2.6 s. `invoice_uploaded` is written after the replica
-starts, so REQ-11's metric does not include the cold start.
+starts, so REQ-11's metric does not include the cold start. That measurement was on the earlier staging environment. On
+`cae-folium-env`, on 2026-11-02 outside business hours, `/healthz` answered after **34.9 s** in production and **35.8 s** in
+staging from zero replicas (one request each).
 
 ## Live test in staging
 
@@ -206,3 +260,34 @@ geo-replication and Premium for `craiplatformshared` (a shared-base tier decisio
 (not used by Folium), a newer Azure OpenAI API version on the shared account (Folium calls the Responses API through the
 pinned `agent-framework-foundry` 1.15.0), and a Service Health alert at subscription level (free,
 but it belongs to the shared base, not to one product). None is Folium's to apply.
+
+**2026-11-02:** staging: zone redundancy for the storage account (High), a higher minimum replica count (Medium) and
+Service Bus Premium (Low); production: Service Bus Premium (Low). Minimum replicas: staging scales to zero by design and
+production keeps one replica in business hours (ADR-011). Premium: Basic covers one queue at this volume (ADR-003,
+`docs/cost.md`). Storage zone redundancy: not applied; the originals are locally redundant with versioning and 7-day soft
+delete, the same single-zone trade-off as the environment and Cosmos DB (cold DR, ADR-004, `docs/cost.md`), and no ADR
+names the storage account yet.
+
+## Known limitations
+
+Open on 2026-11-03, each with its figure and the reason it stays open.
+
+| Limitation | Figure and date | Reason, and when it is revisited |
+|---|---|---|
+| No production use yet | 0 KPI events and only `GET /healthz` in production, 2026-11-03 | Production waits for the vendor master seeding and the author's walk-through, which gives the first real requests, KPIs and `feedback` event |
+| Requirements proven in staging only | every Must used in staging; none in production, 2026-11-03 | Same cause; the walk-through repeats each Must in production |
+| SLA figures from the load-test gate | REQ-10 100 % and REQ-11 24.2 s over all hours of run 3, 2026-11-02. Staging in business hours: 411 requests, 0 errors (2026-11-02, 17:47 to 18:00 UTC only); 30-day staging p95 30.9 s over 2,914 load-test invoices, run 1 included | REQ-10's window needs real business-hours traffic; production's workbook and alerts measure it once there is use |
+| The canary watch saw no traffic | `v1.0.2`'s and `v1.0.3`'s ten-minute canaries passed while production served only probes | A canary proves something only with traffic; kept as a gate, the walk-through gives the first |
+| Rollback and alert not rehearsed | never run on 2026-11-03; the restore drill ran on 2026-11-01 | Drills after `v1.0.4`, staging first, with the author's approval and the time measured |
+| REQ-12 erasure (Should) tested only | `test_erase_redacts_personal_fields` passes; no live erasure | Invoices are kept six years, so the first erasure of a 2026 invoice is possible in 2033; the refusal inside retention is the only live path |
+| Cost per invoice estimated, not measured | estimate 0.025 €; month to date on 2026-11-02: staging 0.85 € (Cosmos DB), production 0.006 € (Azure Monitor), no Container Apps charge yet | The Foundry and Document Intelligence spend sits in the shared group and cannot be split per product; compared with Cost Management after a month of use |
+| README KPIs from the operator's tests | "6 approvals, 83 %" was true at mid-day on 2026-11-01; by the end of that day 7 approvals, touchless 71.4 % (5 of 7), 2 corrected fields, two approvals scripted | Operator tests, not client use; production's workbook replaces them |
+| Node 26 for the web build stage | Dependabot PR #8 (Node 24.22.2 to 26.12.1) closed by the author on 2026-11-02 | The change is in the `Dockerfile`, a runtime path, so it needs a load test, and the stage only builds static files; Node 24 is supported until 2028-04-30. Revisited at the next release that changes the runtime, or by early 2028 at the latest |
+| Storage without zone redundancy | Advisor, High, staging, 2026-11-02 | Single-zone trade-off of the whole product (above) |
+| CI principals' privileges | the RBAC Administrator condition of both CI principals still allows *Key Vault Secrets User*, although there is no vault (ADR-009); both hold *Log Analytics Contributor* on the shared workspace, justified in no ADR | Identity changes are the author's; narrowed at the next identity review |
+| Required checks | the ruleset requires `python` and `evaluate`; `web` (axe) and `bicep` run on every PR but are not required | GitHub settings are the author's |
+| Unused variable | `SHARED_RESOURCE_GROUP` is set in GitHub and listed in the README, but no workflow reads it; the shared group is the Bicep default | Harmless; removed with the next workflow change |
+| Steps that rely on the author's scripts | recreating the environment and the sign-in redirect (above) call the author's scripts outside this repository | They hold identity and settings changes, which stay the author's |
+| Workflow lint | actionlint 1.7.12 gives four shellcheck notes, none an error: two redirect groupings, one unquoted variable, one unused loop variable | Style only; fixed with the next change to those workflows |
+| Code budget at its limit | Python 1,450 of 1,450 and tests 700 of 700 lines | Any code fix must be budget-neutral; the author decides any raise |
+| Demo details | in demo mode the composer is disabled with a placeholder, cut on mobile; the profile reads "Demo" until a run plays | The demo replays recorded runs only; free text needs the deployed system |

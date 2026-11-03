@@ -22,8 +22,8 @@ var tiles = [
   { title: 'Handling time: median seconds on approval (target 120)', query: '${approved}, median_seconds = percentile(todouble(customDimensions.review_seconds), 50) | extend target = 120' }
   { title: 'Touchless rate: % approved with no correction (target 70)', query: '${approved}, touchless_pct = round(100.0 * countif(toint(customDimensions.corrections) == 0) / count(), 1) | extend target = 70' }
   {
-    title: 'Field correction rate: % of extracted fields corrected (target 5)'
-    query: 'customEvents | where name in ("field_corrected", "invoice_ready") | summarize corrected = countif(name == "field_corrected"), fields = sumif(toint(customDimensions.fields), name == "invoice_ready") | extend correction_pct = round(100.0 * corrected / fields, 2), target = 5'
+    title: 'Field correction rate: % of extracted fields corrected, on approved invoices (target 5)'
+    query: 'let approved = customEvents | where name == "invoice_approved" | summarize by invoice = tostring(customDimensions.invoice); customEvents | where name in ("field_corrected", "invoice_ready") and tostring(customDimensions.invoice) in (approved) | summarize corrected = countif(name == "field_corrected"), fields = sumif(toint(customDimensions.fields), name == "invoice_ready") | extend correction_pct = round(100.0 * corrected / fields, 2), target = 5'
   }
   { title: 'Feedback: % helpful (target 80)', query: 'customEvents | where name == "feedback" | summarize votes = count(), helpful_pct = round(100.0 * countif(tobool(customDimensions.helpful)) / count(), 1) | extend target = 80' }
   { title: 'Availability in business hours, % (SLO 99.7, SLA 99.5, REQ-10)', query: '${availability} | extend slo = 99.7, sla = 99.5' }
