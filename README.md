@@ -36,22 +36,25 @@ The clerk's work per invoice becomes a review of a prepared card, with a target 
 
 ## Requirements
 
-Every acceptance criterion is in [`docs/PRODUCT.md`](docs/PRODUCT.md). Status on 2026-11-01: every Must is implemented,
-tested and deployed to staging, where it was used through the web; production receives the same image with `v1.0.0`.
+Every acceptance criterion is in [`docs/PRODUCT.md`](docs/PRODUCT.md). Status on 2026-11-03: every Must is implemented,
+tested and used in staging through the API and the web. `v1.0.0` stopped before production; `v1.0.1` was the first release
+there, and every later release promotes the digest staging ran. Production has had no use yet: its vendor master is seeded
+before the first invoice ([`docs/OPERATIONS.md`](docs/OPERATIONS.md#production-vendor-master)), and the open limitations, each
+with its figure and date, are in [Known limitations](docs/OPERATIONS.md#known-limitations).
 
 | ID | Priority | Requirement | Evidence |
 |---|---|---|---|
 | REQ-01 | Must | Upload one invoice or a batch of up to 20 | batch of six (PDF, scan, JPEG) ready in 12 to 24 s in staging |
 | REQ-02 | Must | Extract every field with its confidence and source | header accuracy 0.9937 on 60 invoices; low-confidence fields marked on the card |
-| REQ-03 | Must | Normalise to the canonical schema and match the vendor | vendors matched in staging; the model cannot add a value absent from the document |
+| REQ-03 | Must | Normalise to the canonical schema and match the vendor | vendors matched in staging against the 40-vendor master; the model cannot add a value absent from the document |
 | REQ-04 | Must | Validate mandatory fields, arithmetic, tax rates, tax IDs and dates | finding precision and recall 1.00; invoices with findings decided by the lead in staging |
 | REQ-05 | Must | Detect exact and probable duplicates | duplicate precision and recall 1.00; exact duplicates sent to the lead and rejected in staging |
 | REQ-06 | Must | Review and correct, with every correction recorded | corrections in the timeline and the `field_corrected` event in staging |
 | REQ-07 | Must | Export approved invoices exactly once in the ERP layout | the same `Idempotency-Key` twice returns one batch in staging |
 | REQ-08 | Must | Full traceability per invoice | timeline with model and prompt versions; resume from a checkpoint exactly once |
 | REQ-09 | Should | Read-only assistant with cited answers | groundedness 4.2 to 4.65, citations 1.00; no write tool |
-| REQ-10 | Must · SLA | 99.5 % availability in business hours | **100 %** measured under load, 2026-11-01 |
-| REQ-11 | Must · SLA | 95 % of standard invoices ready for review in under 30 s | **24.2 s** p95 measured under load, 2026-11-01 |
+| REQ-10 | Must · SLA | 99.5 % availability in business hours | **100 %** in the load-test gate (all hours of the run), 2026-11-02 |
+| REQ-11 | Must · SLA | 95 % of standard invoices ready for review in under 30 s | **24.2 s** p95 over 240 invoices under load, 2026-11-02 |
 | REQ-12 | Should | Erasure of a sole trader's personal data on request | `ops/erase.py`, tested; not run in staging |
 
 ### Traceability
@@ -125,6 +128,9 @@ The [published demo](https://rodrigo-gomezdelmoral.github.io/product-finance-fol
 findings decided by the lead, a probable duplicate blocked, hidden instructions refused by Prompt Shields, an export exactly
 once, an exported invoice's timeline, and the assistant's cited answers.
 
+**Accessibility:** Lighthouse 12.8.2 scores the published demo **100** for accessibility (mobile, 2026-11-03), and every pull
+request runs axe on the demo build, failing on any serious or critical WCAG 2.2 AA violation.
+
 ## Environments and releases
 
 | | Staging | Production |
@@ -136,23 +142,31 @@ once, an exported invoice's timeline, and the assistant's cited answers.
 Every merge builds one image, deploys its digest to staging behind a canary label, checks health and runs a smoke test. A
 release checks that its commit was deployed and passed the load test (not needed when only the web, docs or workflows changed
 since the last release in production, ADR-014), then promotes the same digest to production: 10 % of
-traffic for ten minutes watching server errors, then 100 %, or a rollback. Rollback is a release of an earlier tag.
+traffic for ten minutes watching server errors, then 100 %, or a rollback. Rollback is a release of an earlier tag, from
+`v1.0.1` on.
 
-**Load tests in staging** (`load-test.yml`, run 41299957986, 2026-11-01), with Document Intelligence and the model behind
-doubles that keep their measured latencies:
+**Load tests in staging** (`load-test.yml`, run 41494700777 on `cae-folium-env`, commit `f92f034` released as `v1.0.1`,
+2026-11-02), with Document Intelligence and the model behind doubles that keep their measured latencies:
 
 | Scenario | p50 | p95 | p99 | Requests/s | Errors | Replicas |
 |---|---|---|---|---|---|---|
-| normal, 5 users | 16 s | 30 s | 30 s | 0.83 | 0 of 25 uploads | 2 |
-| peak, three 20-invoice batches | 27 s | 41 s | 41 s | 2.83 | 0 | 2 |
-| soak, 30 min | 16 s | 16 s | 17 s | 0.73 | 0 of 150 uploads | 2 |
-| stress, ramp to about 105 users | 16 s | 27 s | 29 s | 8.94 | 0 of 616 uploads | 2 |
-| 20 invoices, real services | 44 s | 49 s | 49 s | 2.16 | 0 | 1 to 2 |
+| normal, 5 users | 16 s | 29 s | 29 s | 0.84 | 0 of 25 uploads | 2 |
+| peak, three 20-invoice batches | 27 s | 40 s | 41 s | 2.70 | 0 | 2 |
+| soak, 30 min | 16 s | 17 s | 17 s | 0.73 | 0 of 150 uploads | 2 |
+| stress, ramp to about 100 users | 16 s | 27 s | 30 s | 8.75 | 1 of 5,376 requests, 0 of 583 uploads | 2 |
+| 20 invoices, real services | 46 s | 51 s | 51 s | 2.02 | 0 | |
 
-**SLOs measured:** p95 ready 24.2 s against an SLO of 25 s and an SLA of 30 s; availability 100 % against 99.7 % and 99.5 %.
-Cold start from zero: 35.3 s to the upload's answer. Restore drill: Cosmos DB point-in-time restore in 11 minutes, a blob
-version in 13 s. **DORA metrics** are read from the workflow runs as described in [`docs/OPERATIONS.md`](docs/OPERATIONS.md),
-from the first release on.
+The earlier runs, on the staging environment that `v1.0.1` replaced, are kept in [`docs/OPERATIONS.md`](docs/OPERATIONS.md#load-tests).
+
+**SLOs measured:** p95 ready 24.2 s over 240 invoices against an SLO of 25 s and an SLA of 30 s; availability 100 % against
+99.7 % and 99.5 %, both over all hours of the load test, not yet in business hours with real use. Cold start from zero on
+`cae-folium-env`: 34.9 s in production and 35.8 s in staging to the first answer (2026-11-02, one request each). Restore
+drill: Cosmos DB point-in-time restore in 11 minutes, a blob version in 13 s (2026-11-01).
+
+**DORA metrics** (GitHub Actions runs, 2026-11-03): 3 successful production releases in two days; lead time from merge to
+production 20 minutes for `v1.0.2` and `v1.0.3` (1 h 23 min for `v1.0.1`), approval and ten-minute canary included; change
+failure rate 1 of 4 release runs, `v1.0.0`, which failed before production; time to restore 9 h 46 min. Details in
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md#dora-metrics).
 
 ## Cost
 
@@ -163,7 +177,7 @@ from the first release on.
 
 At the client's volume, 1,500 invoices and 3,000 pages a month, the estimate is about 38 €/month, about 0.025 € per invoice,
 against 3 to 8 € of manual work. Prices and the breakdown are in [`docs/cost.md`](docs/cost.md); the estimate is compared with
-Cost Management per environment after the release.
+Cost Management per environment after a month of use.
 
 ## Well-Architected design
 

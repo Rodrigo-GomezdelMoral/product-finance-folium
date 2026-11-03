@@ -57,8 +57,9 @@ on the client's real invoices is measured in staging through the field correctio
 ### 2.5 to 2.8 Readiness, task, humans, environment
 
 - Every component is generally available: Document Intelligence v4 `2024-11-30`, Prompt Shields `2024-09-01` and `gpt-5-mini`
-  `2025-08-07`, pinned with no automatic upgrade. The model retires on 2027-02-09, and a model change passes the evaluation
-  gate before it ships. Agent Framework's evaluation API is experimental.
+  `2025-08-07`, pinned with no automatic upgrade. The model retires on 2027-07-13 (Microsoft Learn, *Model retirement
+  schedule*, read on 2026-11-02, and the account's `list-models` `deprecation.inference`, read on 2026-11-03), and a model
+  change passes the evaluation gate before it ships. Agent Framework's evaluation API is experimental.
 - The task is narrow and checkable: every value has a ground truth on the page.
 - People decide; the AI prepares. The deployment is internal, single tenant, at about 1,500 invoices a month.
 

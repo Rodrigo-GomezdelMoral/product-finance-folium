@@ -370,7 +370,7 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   registry host is written anywhere.
 - **Workbook and alerts** (`monitor.bicep`): nine KQL tiles (four KPIs against target, two SLAs against commitment, the health
   model, KPI events arriving). The worker's `invoice_ready` carries `fields`, not the prompt's `field_count`; the queries use
-  `fields`. Alerts exist in production only: three log alerts and one metric alert, about 1.4 €/month.
+  `fields`, and since `v1.0.4` the field correction rate counts only invoices with an `invoice_approved` event. Alerts exist in production only: three log alerts and one metric alert, about 1.4 €/month.
 - **Budgets** start on a fixed 2026-11-01: a start date from `utcNow()` would change on every monthly redeployment, which the
   budgets API may refuse; a future start may be at most three months ahead, a past one within the current month.
 - **Shared-base deployments.** `shared.bicep` is a nested deployment in `rg-aiplatform-shared-swc`, which needs
@@ -535,3 +535,18 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
   run; a failed release never reached production) matches `web/**`, `docs/**`, `.github/**` or
   `*.md`, and prints the paths and the decision. No such release, or any other path, requires the load test. The load
   test measures the API's latency; the web, the documents and the workflows do not change the API at runtime.
+
+## Validation close-out (2026-11-03, `v1.0.4`)
+
+- **Production vendor master:** empty after the first releases, because nothing seeds production and no person holds a data
+  role there. The author seeds it once with a script outside the repository (a temporary Cosmos DB Built-in Data Contributor
+  role, `python -m ops.seed`, the role removed), before the release, so the new revision reads it at start-up. Not chosen:
+  seeding inside the app (Python is at 1,450 of 1,450).
+- **Field correction rate:** the workbook tile filters both events to approved invoices with a `let` of the approved invoice
+  ids and `in`; checked against staging on 2026-11-03 (1.42 %, 2 of 141 fields on 8 invoices).
+- **Serving revision in telemetry:** `app.bicep` adds `OTEL_SERVICE_NAME` (`ca-folium-<env>`) and `OTEL_RESOURCE_ATTRIBUTES`
+  (`service.version=<revision name>`) to the container's settings; the Azure Monitor exporter maps them to `cloud_RoleName` and
+  `application_Version`. `cloud_RoleInstance` stays the replica. `load-test.yml` overrides the version for its load revision.
+- **Version:** `v1.0.3` was a web-only release, so this close-out is `v1.0.4`; it changes `infra/`, so it needs the load test.
+- **Open limitations** are listed with figure and date at the end of `docs/OPERATIONS.md`; Dependabot PR #8 (Node 26) was
+  closed by the author and is revisited at the next runtime release.
