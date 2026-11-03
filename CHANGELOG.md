@@ -6,6 +6,17 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-02
+
+The web client's sidebar keeps its top and its user block in place, and its sizes match the common product layout. The
+API is unchanged.
+
+### Changed
+
+- The logo, "New chat", search and the user block stay fixed while the two lists scroll together between them, and a long
+  user name ends in an ellipsis on one line.
+- The "Waiting for review" heading is a button with a chevron that shows or hides its documents; it starts open.
+
 ## [1.0.2] - 2026-11-02
 
 The web client takes the common product shell, and a release whose changes are only in the web, the documents or the

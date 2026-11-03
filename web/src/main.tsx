@@ -1,7 +1,7 @@
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-600.css";
 import "./styles.css";
-import { ArrowUp, Check, CircleUserRound, Copy, FileText, LoaderCircle, LogOut, Menu, MessageSquare, Paperclip, Search, SquarePen, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, ChevronRight, CircleUserRound, Copy, FileText, LoaderCircle, LogOut, Menu, MessageSquare, Paperclip, Search, SquarePen, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Markdown from "react-markdown";
@@ -10,6 +10,7 @@ import { api, DEMO, LEAD, replay, RUNS, type Batch, type Conversation, type Invo
 import { InvoiceCard } from "./Invoice";
 
 const BRAND = `${import.meta.env.BASE_URL}brand/`;
+const REVIEW = "Waiting for review";
 const SUGGESTIONS = [
   { text: "Upload this month's invoices", kind: "upload" },
   { text: "Which invoices are waiting for approval?", kind: "ask" },
@@ -82,6 +83,7 @@ function App() {
   const [draft, setDraft] = useState("");
   const [filter, setFilter] = useState<string>();
   const [menu, setMenu] = useState(false);
+  const [folded, setFolded] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const thread = useRef<HTMLDivElement>(null);
@@ -177,7 +179,7 @@ function App() {
     ? [["Recorded runs", RUNS.map((run) => ({ key: run.title, label: run.title, go: () => play(run), icon: FileText }))]]
     : [
         [
-          "Waiting for review",
+          REVIEW,
           queue.map((item) => {
             const label = String(item.data.invoice_number ?? item.name);
             return { key: item.id, label, go: () => (reset(item.id), open(item.id, `Review ${label}`)), icon: FileText };
@@ -213,23 +215,37 @@ function App() {
           </div>
           {filter !== undefined && <input className="search" aria-label="Search the list" autoFocus value={filter} onChange={(event) => setFilter(event.target.value)} />}
           <nav aria-label={DEMO ? "Recorded runs" : "Invoices and conversations"}>
-            {sections.map(([heading, items]) => (
-              <section key={heading}>
-                <h2>{heading}</h2>
-                <ul>
-                  {items
-                    .filter((item) => item.label.toLowerCase().includes((filter ?? "").toLowerCase()))
-                    .map(({ key, label, go, icon: Icon }) => (
-                      <li key={key}>
-                        <button className={key === active ? "item selected" : "item"} aria-current={key === active} onClick={go}>
-                          <Icon size={16} aria-hidden /> <span>{label}</span>
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-                {items.length === 0 && <p className="status">{DEMO ? "No recorded runs yet." : "Nothing here yet."}</p>}
-              </section>
-            ))}
+            {sections.map(([heading, items]) => {
+              const shut = folded && heading === REVIEW;
+              return (
+                <section key={heading}>
+                  <h2>
+                    {heading === REVIEW ? (
+                      <button className="fold" aria-expanded={!shut} onClick={() => setFolded(!folded)}>
+                        {heading}
+                        {shut ? <ChevronRight size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+                      </button>
+                    ) : (
+                      heading
+                    )}
+                  </h2>
+                  {!shut && (
+                    <ul>
+                      {items
+                        .filter((item) => item.label.toLowerCase().includes((filter ?? "").toLowerCase()))
+                        .map(({ key, label, go, icon: Icon }) => (
+                          <li key={key}>
+                            <button className={key === active ? "item selected" : "item"} aria-current={key === active} onClick={go}>
+                              <Icon size={16} aria-hidden /> <span>{label}</span>
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                  {!shut && items.length === 0 && <p className="status">{DEMO ? "No recorded runs yet." : "Nothing here yet."}</p>}
+                </section>
+              );
+            })}
           </nav>
           <div className="me">
             <CircleUserRound className="avatar" size={28} strokeWidth={1.5} aria-hidden />
