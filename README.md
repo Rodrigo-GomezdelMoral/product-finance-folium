@@ -37,54 +37,56 @@ The clerk's work per invoice becomes a review of a prepared card, with a target 
 ## Requirements
 
 Every acceptance criterion is in [`docs/PRODUCT.md`](docs/PRODUCT.md). Status on 2026-11-03: every Must is implemented,
-tested and used in staging through the API and the web. `v1.0.0` stopped before production; `v1.0.1` was the first release
-there, and every later release promotes the digest staging ran. Production has had no use yet: its vendor master is seeded
-before the first invoice ([`docs/OPERATIONS.md`](docs/OPERATIONS.md#production-vendor-master)), and the open limitations, each
-with its figure and date, are in [Known limitations](docs/OPERATIONS.md#known-limitations).
+tested, used in staging through the API and the web, and walked through in production on `v1.0.4` through the API
+([`docs/OPERATIONS.md`](docs/OPERATIONS.md#walk-through-in-production)). `v1.0.0` stopped before production; `v1.0.1` was the
+first release there, and every later release promotes the digest staging ran. Production's vendor master was seeded on
+2026-11-03 ([`docs/OPERATIONS.md`](docs/OPERATIONS.md#production-vendor-master)). The open limitations, each with its figure
+and date, are in [Known limitations](docs/OPERATIONS.md#known-limitations).
 
 | ID | Priority | Requirement | Evidence |
 |---|---|---|---|
-| REQ-01 | Must | Upload one invoice or a batch of up to 20 | batch of six (PDF, scan, JPEG) ready in 12 to 24 s in staging |
-| REQ-02 | Must | Extract every field with its confidence and source | header accuracy 0.9937 on 60 invoices; low-confidence fields marked on the card |
-| REQ-03 | Must | Normalise to the canonical schema and match the vendor | vendors matched in staging against the 40-vendor master; the model cannot add a value absent from the document |
-| REQ-04 | Must | Validate mandatory fields, arithmetic, tax rates, tax IDs and dates | finding precision and recall 1.00; invoices with findings decided by the lead in staging |
-| REQ-05 | Must | Detect exact and probable duplicates | duplicate precision and recall 1.00; exact duplicates sent to the lead and rejected in staging |
-| REQ-06 | Must | Review and correct, with every correction recorded | corrections in the timeline and the `field_corrected` event in staging |
-| REQ-07 | Must | Export approved invoices exactly once in the ERP layout | the same `Idempotency-Key` twice returns one batch in staging |
-| REQ-08 | Must | Full traceability per invoice | timeline with model and prompt versions; resume from a checkpoint exactly once |
-| REQ-09 | Should | Read-only assistant with cited answers | groundedness 4.2 to 4.65, citations 1.00; no write tool |
-| REQ-10 | Must · SLA | 99.5 % availability in business hours | **100 %** in the load-test gate (all hours of the run), 2026-11-02 |
-| REQ-11 | Must · SLA | 95 % of standard invoices ready for review in under 30 s | **24.2 s** p95 over 240 invoices under load, 2026-11-02 |
+| REQ-01 | Must | Upload one invoice or a batch of up to 20 | production: a batch of three (PDF, JPEG, PDF) ready in 17.8 to 18.9 s; staging: a batch of six in 12 to 24 s |
+| REQ-02 | Must | Extract every field with its confidence and source | header accuracy 0.9937 on 60 invoices; low-confidence fields marked on the card; 6 invoices extracted in production |
+| REQ-03 | Must | Normalise to the canonical schema and match the vendor | production: every vendor matched against the seeded 40-vendor master, no `unknown_vendor`; the model cannot add a value absent from the document |
+| REQ-04 | Must | Validate mandatory fields, arithmetic, tax rates, tax IDs and dates | finding precision and recall 1.00; a total mismatch rejected by the lead in production |
+| REQ-05 | Must | Detect exact and probable duplicates | duplicate precision and recall 1.00; a probable duplicate sent to the lead and rejected in production |
+| REQ-06 | Must | Review and correct, with every correction recorded | a corrected vendor name in the timeline and one `field_corrected` event in production |
+| REQ-07 | Must | Export approved invoices exactly once in the ERP layout | production: the same `Idempotency-Key` twice returned one batch, and a third export found nothing left |
+| REQ-08 | Must | Full traceability per invoice | production timeline from upload to export with model and prompt versions; resume from a checkpoint exactly once (test) |
+| REQ-09 | Should | Read-only assistant with cited answers | groundedness 4.2 to 4.65, citations 1.00; no write tool; a cited answer and one 👍 in production |
+| REQ-10 | Must · SLA | 99.5 % availability in business hours | **100 %** in the load-test gate (all hours, 2026-11-02); production business hours 100 % over 4,556 requests (2026-11-03, one morning) |
+| REQ-11 | Must · SLA | 95 % of standard invoices ready for review in under 30 s | **24.2 s** p95 over 240 invoices under load (2026-11-02); production 19.2 s over 5 standard invoices (2026-11-03) |
 | REQ-12 | Should | Erasure of a sole trader's personal data on request | `ops/erase.py`, tested; not run in staging |
 
 ### Traceability
 
 | REQ | Phase | Test | Live evidence | Demo run |
 |---|---|---|---|---|
-| 01 | 1, 4 | `test_upload_batch_hash_and_types` | batch upload in staging | Batch upload ready for review |
-| 02 | 2 | `test_extract_maps_all_fields` (recorded responses) | ready invoice in staging | Batch upload ready for review |
-| 03 | 2 | `test_normalizer_cross_check_rejects_invented_values`, `test_vendor_matched_by_tax_id_then_name` | vendor matched in staging | Correction and approval |
-| 04 | 1 | `test_rules_type_each_failure_with_its_evidence`, `test_rules_check_nif_cif_and_eu_vat`, `test_rules_on_the_synthetic_set` | invoice with findings | Invoice with findings decided by the lead |
-| 05 | 1, 4 | `test_duplicates_exact_and_probable`, `test_duplicate_blocks_export` | duplicate blocked | Probable duplicate blocked |
-| 06 | 4, 5 | `test_correction_recorded`, `test_clerk_cannot_approve_findings` | correction in the timeline | Correction and approval |
-| 07 | 4 | `test_export_exactly_once` | two exports, one batch | Export exactly once |
-| 08 | 2, 4 | `test_timeline_complete`, `test_resume_from_checkpoint`, `test_redelivered_message_is_a_noop` | timeline in staging | Timeline of an exported invoice |
-| 09 | 2, 3 | `test_assistant_has_no_write_tool`, `test_injected_invoice_skips_the_normalizer`, evaluation citations | cited answer and refused injection | Assistant answer with citations · Hidden instructions refused |
-| 10 | 7 | Locust, workbook | availability measured | the load test results below |
-| 11 | 7 | Locust, `invoice_ready` | p95 measured | Batch upload ready for review |
+| 01 | 1, 4 | `test_upload_batch_hash_and_types` | batch upload in production | Batch upload ready for review |
+| 02 | 2 | `test_extract_maps_all_fields` (recorded responses) | ready invoices in production | Batch upload ready for review |
+| 03 | 2 | `test_normalizer_cross_check_rejects_invented_values`, `test_vendor_matched_by_tax_id_then_name` | vendors matched in production | Correction and approval |
+| 04 | 1 | `test_rules_type_each_failure_with_its_evidence`, `test_rules_check_nif_cif_and_eu_vat`, `test_rules_on_the_synthetic_set` | invoice with findings, production | Invoice with findings decided by the lead |
+| 05 | 1, 4 | `test_duplicates_exact_and_probable`, `test_duplicate_blocks_export` | duplicate blocked, production | Probable duplicate blocked |
+| 06 | 4, 5 | `test_correction_recorded`, `test_clerk_cannot_approve_findings` | correction in the timeline, production | Correction and approval |
+| 07 | 4 | `test_export_exactly_once` | two exports, one batch, production | Export exactly once |
+| 08 | 2, 4 | `test_timeline_complete`, `test_resume_from_checkpoint`, `test_redelivered_message_is_a_noop` | timeline in production | Timeline of an exported invoice |
+| 09 | 2, 3 | `test_assistant_has_no_write_tool`, `test_injected_invoice_skips_the_normalizer`, evaluation citations | cited answer and refused injection, production | Assistant answer with citations · Hidden instructions refused |
+| 10 | 7 | Locust, workbook | availability measured, load test and production | the load test results below |
+| 11 | 7 | Locust, `invoice_ready` | p95 measured, load test and production | Batch upload ready for review |
 | 12 | 4 | `test_erase_redacts_personal_fields` | not run in staging | not recorded |
 
 ## KPIs
 
 Measured from Application Insights `customEvents`, which are never sampled out. The staging values come from the operator's
-tests on 2026-11-01, not from client use; production measures the client's.
+tests on 2026-11-01 and the production values from the author's walk-through on 2026-11-03, not from client use; production's
+workbook measures the client's.
 
-| KPI | Target | Staging, 2026-11-01 |
-|---|---|---|
-| Handling time per invoice | 2 min or less, from 9 to 19 today | median 35 s over 6 approvals |
-| Touchless rate | 70 % or more approved with no correction | 83 % (5 of 6) |
-| Field correction rate | 5 % or less of extracted fields | 1 corrected field over 6 approved invoices |
-| Feedback | 80 % or more positive | no feedback yet |
+| KPI | Target | Staging, 2026-11-01 | Production, 2026-11-03 |
+|---|---|---|---|
+| Handling time per invoice | 2 min or less, from 9 to 19 today | median 35 s over 6 approvals | not measured: the one approval came through the API, and only the web sends `review_seconds` |
+| Touchless rate | 70 % or more approved with no correction | 83 % (5 of 6) | 0 % (0 of 1): the walk-through's approval corrects a field on purpose |
+| Field correction rate | 5 % or less of extracted fields | 1 corrected field over 6 approved invoices | 5.26 % (1 of 19 fields, 1 approved invoice) |
+| Feedback | 80 % or more positive | no feedback yet | 100 % (1 vote) |
 
 ## Repo card
 
@@ -143,7 +145,8 @@ Every merge builds one image, deploys its digest to staging behind a canary labe
 release checks that its commit was deployed and passed the load test (not needed when only the web, docs or workflows changed
 since the last release in production, ADR-014), then promotes the same digest to production: 10 % of
 traffic for ten minutes watching server errors, then 100 %, or a rollback. Rollback is a release of an earlier tag, from
-`v1.0.1` on.
+`v1.0.1` on. The planned rollback was rehearsed in staging on 2026-11-03: to `v1.0.3`'s image in 192 s and back to `v1.0.4`'s
+in 188 s ([`docs/OPERATIONS.md`](docs/OPERATIONS.md#rollback)).
 
 **Load tests in staging** (`load-test.yml`, run 41494700777 on `cae-folium-env`, commit `f92f034` released as `v1.0.1`,
 2026-11-02), with Document Intelligence and the model behind doubles that keep their measured latencies:
@@ -159,13 +162,16 @@ traffic for ten minutes watching server errors, then 100 %, or a rollback. Rollb
 The earlier runs, on the staging environment that `v1.0.1` replaced, are kept in [`docs/OPERATIONS.md`](docs/OPERATIONS.md#load-tests).
 
 **SLOs measured:** p95 ready 24.2 s over 240 invoices against an SLO of 25 s and an SLA of 30 s; availability 100 % against
-99.7 % and 99.5 %, both over all hours of the load test, not yet in business hours with real use. Cold start from zero on
-`cae-folium-env`: 34.9 s in production and 35.8 s in staging to the first answer (2026-11-02, one request each). Restore
-drill: Cosmos DB point-in-time restore in 11 minutes, a blob version in 13 s (2026-11-01).
+99.7 % and 99.5 %, both over all hours of the load test. In production, on the morning of 2026-11-03 with the walk-through:
+p95 ready 19.2 s over 5 standard invoices, and business-hours availability 100 % over 4,556 requests, health probes included;
+not yet a month of real use. Cold start from zero on `cae-folium-env`: 34.9 s in production and 35.8 s in staging to the first
+answer (2026-11-02), and 33.0 s in staging with `v1.0.4`'s image (2026-11-03), one request each. Restore drill: Cosmos DB
+point-in-time restore in 11 minutes, a blob version in 13 s (2026-11-01).
 
-**DORA metrics** (GitHub Actions runs, 2026-11-03): 3 successful production releases in two days; lead time from merge to
-production 20 minutes for `v1.0.2` and `v1.0.3` (1 h 23 min for `v1.0.1`), approval and ten-minute canary included; change
-failure rate 1 of 4 release runs, `v1.0.0`, which failed before production; time to restore 9 h 46 min. Details in
+**DORA metrics** (GitHub Actions runs, 2026-11-03): 4 successful production releases in two days; lead time from merge to
+production 20 minutes for `v1.0.2` and `v1.0.3`, 1 h 32 min for `v1.0.4` (its one-hour load test included) and 1 h 23 min for
+`v1.0.1`, approval and ten-minute canary included; change failure rate 1 of 5 release runs, `v1.0.0`, which failed before
+production; time to restore 9 h 46 min. Details in
 [`docs/OPERATIONS.md`](docs/OPERATIONS.md#dora-metrics).
 
 ## Cost

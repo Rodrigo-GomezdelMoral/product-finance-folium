@@ -550,3 +550,14 @@ then delete the copy, which is never committed (`src/demo/runs/` holds only runs
 - **Version:** `v1.0.3` was a web-only release, so this close-out is `v1.0.4`; it changes `infra/`, so it needs the load test.
 - **Open limitations** are listed with figure and date at the end of `docs/OPERATIONS.md`; Dependabot PR #8 (Node 26) was
   closed by the author and is revisited at the next runtime release.
+
+## Production walk-through (2026-11-03, after `v1.0.4`)
+
+- **Evidence kept outside the repository:** the nine run files of the walk-through live in the gitignored
+  `web/test-results/production/`; the documents quote their figures and Application Insights in production holds the events.
+- **Telemetry:** requests are sampled by the Azure Monitor exporter (sum `itemCount` for counts); `customEvents` are not.
+  `application_Version` names the serving revision, as `v1.0.4` set it.
+- **Staging rollback:** `deploy.yml -f tag=<image tag>` runs `main`'s Bicep with the earlier image, so it rolls back the code,
+  not the infrastructure; production's planned path (`release.yml` from an earlier tag) checks out that tag's Bicep.
+- **Not rehearsed for `v1.0.4`:** the fast rollback in production, an alert fired on purpose, the live erasure refusal, browser
+  sign-in and the deployed web's comparison with the demo; each is in Known limitations with its evidence and plan.

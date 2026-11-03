@@ -6,6 +6,16 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/OPERATIONS.md`: the production walk-through of `v1.0.4` on 2026-11-03, each Must with what happened in production;
+  the seeded vendor master; the planned rollback rehearsed in staging (192 s and 188 s) and the fact that `deploy.yml` with an
+  earlier tag applies `main`'s Bicep, so it rolls back the code, not the infrastructure; the alerts' state; `v1.0.4` in the
+  DORA figures; the cold start with `v1.0.4`'s image; and the known limitations brought up to date, each with its evidence,
+  residual risk and when it is planned.
+- `README.md`: production evidence per requirement, production KPIs and SLOs with date and n, the rollback drill and the
+  DORA figures with `v1.0.4`.
+
 ## [1.0.4] - 2026-11-03
 
 The close-out of the product's validation. The workbook's field correction rate follows its definition, telemetry names the
