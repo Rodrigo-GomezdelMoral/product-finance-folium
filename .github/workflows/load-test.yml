@@ -56,7 +56,7 @@ jobs:
           bus="$(az resource list -g "$RG" --resource-type Microsoft.ServiceBus/namespaces --query "[0].id" -o tsv)"
           { echo "STABLE=$stable"; echo "TESTED_SHA=$sha"; echo "LOAD=$load"; echo "FQDN=$fqdn"; echo "BUS=$bus"; } >> "$GITHUB_ENV"
           echo "START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-          az containerapp update -n "$APP" -g "$RG" --revision-suffix "${load##*--}" --set-env-vars DOUBLES=load -o none
+          az containerapp update -n "$APP" -g "$RG" --revision-suffix "${load##*--}" --set-env-vars DOUBLES=load "OTEL_RESOURCE_ATTRIBUTES=service.version=$load" -o none
           az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$load=100" "$stable=0" -o none
           az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$stable" -o none
       - name: Normal, peak and soak with the doubles

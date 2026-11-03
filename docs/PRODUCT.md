@@ -275,10 +275,10 @@ Measured from Application Insights `customEvents`. KPI events are never sampled 
 |---|---|---|---|
 | Handling time | median `review_seconds` on approval | `invoice_approved` (`review_seconds`, measured by the web while the review card is open) | 2 min or less (today 9 to 19) |
 | Touchless rate | approved with no correction ÷ approved | `invoice_approved` (`corrections`) | 70 % or more |
-| Field correction rate | corrected fields ÷ extracted fields, on approved invoices | `field_corrected` ÷ `invoice_ready` (`field_count`) | 5 % or less |
+| Field correction rate | corrected fields ÷ extracted fields, on approved invoices | `field_corrected` ÷ the `fields` of `invoice_ready`, both counted only for invoices with an `invoice_approved` event | 5 % or less |
 | Feedback | 👍 ÷ (👍 + 👎) | `feedback` | 80 % or more |
 
-Also emitted: `invoice_uploaded`, `invoice_ready` (`seconds`, `pages`, `standard`) and `invoice_exported`.
+Also emitted: `invoice_uploaded`, `invoice_ready` (`seconds`, `pages`, `standard`, `fields`) and `invoice_exported`.
 
 ## Non-functional requirements
 
