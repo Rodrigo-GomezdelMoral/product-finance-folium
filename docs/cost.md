@@ -7,10 +7,14 @@ in staging, and the end of the build compares these figures with Cost Management
 
 ## Per environment
 
+*In use* is the month's total with that use, the at-rest costs included, as in the client-volume row, whose "the rest"
+counts them. Production's ≈ 3 € was estimated on 2026-10-31, before the warm replica of 2026-11-01 (ADR-011), which adds
+≈ 3 to 4 € in both columns.
+
 | | At rest | In use | Budget |
 |---|---|---|---|
 | Staging | ≈ 0.3 €/month (Cosmos DB and blob storage) | ≈ 7 €/month (evaluation, load tests, real-service runs) | 10 € |
-| Production | ≈ 1.5 €/month (three log alerts, one metric alert, storage) plus ≈ 3 to 4 €/month for the warm replica in business hours (ADR-011) | ≈ 3 €/month with demo use | 20 € |
+| Production | ≈ 1.5 €/month (three log alerts, one metric alert, storage) plus ≈ 3 to 4 €/month for the warm replica in business hours (ADR-011) | ≈ 3 €/month with demo use, plus ≈ 3 to 4 €/month for the warm replica in business hours | 20 € |
 | Client volume (1,500 invoices, 3,000 pages) | | Document Intelligence 26.4 € · `gpt-5-mini` ≈ 5.3 € · Prompt Shields ≈ 1 € · Container Apps ≈ 4 € · the rest ≈ 1.5 € → **≈ 38 €/month, ≈ 0.025 € per invoice**, against 3 to 8 € of manual work | |
 
 ## Prices used

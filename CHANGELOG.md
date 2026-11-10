@@ -6,7 +6,24 @@ All notable changes to Folium are documented in this file. The format follows
 
 ## [Unreleased]
 
-## [1.0.5] - 2026-11-03
+### Changed
+
+- `README.md`: the final presentation, with the measured figures of `v1.0.5`: requirements and SLAs, production KPIs from
+  2026-11-03 to 2026-11-08 (synthetic use), the load test of 2026-11-08 and DORA to `v1.0.5`, with twelve PNG images in
+  `docs/images/` (process maps, boards, diagrams and production captures) and the header logo for light and dark themes.
+- `docs/OPERATIONS.md`: `v1.0.5` in the status and the DORA figures, load-test runs 4 (2026-11-03) and 5 (2026-11-08) with the
+  staging dead-letter count explained, the recording in production of 2026-11-08, and the known limitations it closed.
+- `docs/PRODUCT.md`: the process maps as PNG.
+- `docs/cost.md`: *In use* defined as the month's total, at-rest costs included, with production's business-hours replica in
+  both columns.
+- This file: each release dated by its GitHub publication (`1.0.0` 2026-11-02, `1.0.3` 2026-11-03, `1.0.5` 2026-11-08).
+
+### Removed
+
+- The SVG copies of the process maps and the brand in `docs/images/`; the web keeps its own in `web/public/brand/`.
+- The BPMN 2.0 sources of the process maps in `docs/images/`; the PNG maps stay.
+
+## [1.0.5] - 2026-11-08
 
 The documents record the production walk-through of `v1.0.4` and the rollback rehearsed in staging. Only `docs/`,
 `README.md` and this file changed, so this release needs no load test (ADR-014). The API and the infrastructure are
@@ -51,7 +68,7 @@ The API is unchanged; `infra/` changed, so this release needs a passing load tes
   account's `list-models`), in `docs/OPERATIONS.md` and `docs/RESPONSIBLE_AI.md`; the migration plan moves to the end of May
   2027.
 
-## [1.0.3] - 2026-11-02
+## [1.0.3] - 2026-11-03
 
 The web client's sidebar keeps its top and its user block in place, and its sizes match the common product layout. The
 API is unchanged.
@@ -97,7 +114,7 @@ per region. This release reaches production with one environment for the whole p
 
 - `cae-folium-stg-spc`, replaced by `cae-folium-env`.
 
-## [1.0.0] - 2026-11-01
+## [1.0.0] - 2026-11-02
 
 First release: Folium runs in staging, measured against its SLAs, and is promoted to production by this release.
 

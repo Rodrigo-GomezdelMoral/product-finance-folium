@@ -22,7 +22,7 @@ decided what on every invoice.
 
 One clerk does every step, by hand, for every invoice. The times are the client's.
 
-![Accounts payable today: eight manual steps by the clerk, 9 to 19 minutes per invoice](images/process-as-is.svg)
+![Accounts payable today, in BPMN 2.0: the clerk receives, reads, looks up the vendor, keys the header and the lines, checks totals and VAT, searches for duplicates and files the PDF, 9 to 19 minutes per invoice](images/process-as-is.png)
 
 | # | Step | Who | Time |
 |---|---|---|---|
@@ -36,15 +36,13 @@ One clerk does every step, by hand, for every invoice. The times are the client'
 | 8 | File the PDF and note the entry | Clerk | 0.5-1 min |
 | | **Per invoice** | | **9-19 min** |
 
-BPMN 2.0 source: [`images/process-as-is.bpmn`](images/process-as-is.bpmn).
-
 ## Process to-be
 
 The clerk uploads a batch. Folium extracts, normalises, validates and checks duplicates, and the invoice is ready for review in
 under 30 seconds. The clerk reviews, corrects and approves clean invoices; invoices with findings or duplicates go to the lead,
 who resolves them and exports approved invoices in the ERP layout. **Folium never approves and never exports.**
 
-![Accounts payable with Folium: the clerk uploads and reviews, Folium prepares each invoice, the lead resolves findings and exports](images/process-to-be.svg)
+![Accounts payable with Folium, in BPMN 2.0: the clerk uploads a batch and reviews, Folium extracts, normalises, validates and checks duplicates, ready for review in under 30 s; the clerk approves clean invoices and the lead resolves findings and duplicates and exports exactly once](images/process-to-be.png)
 
 | # | Step | Who | Time |
 |---|---|---|---|
@@ -56,8 +54,7 @@ who resolves them and exports approved invoices in the ERP layout. **Folium neve
 | 6 | Resolve findings or duplicates and approve, with a reason | Lead | only invoices with findings |
 | 7 | Export approved invoices, exactly once | Lead | per batch |
 
-BPMN 2.0 source: [`images/process-to-be.bpmn`](images/process-to-be.bpmn). Both maps use only the Descriptive conformance
-sub-class of BPMN 2.0.2 and validate against the OMG schema.
+Both maps use only the Descriptive conformance sub-class of BPMN 2.0.2.
 
 ## Roles
 
