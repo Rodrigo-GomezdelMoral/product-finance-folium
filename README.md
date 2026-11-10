@@ -17,6 +17,9 @@ against the 30 s committed in the SLA (2026-11-08).
 > and times are the product brief's ([`docs/PRODUCT.md`](docs/PRODUCT.md)). Production's figures come from the author's
 > walk-through, a scripted browser and the demo recording, not from clerks' work.
 
+Production, 2026-11-08: a batch of three invoices uploaded in one message, and the first card ready for review in 15.4 s, with
+each field's value, confidence and page next to the original.
+
 ![The production web on 2026-11-08: a batch of three invoices uploaded in one message, and the first card, A-000419, ready for review in 15.4 s after extraction, Prompt Shields, normalisation, validation and the duplicate check, with each field's value, confidence and page next to the original](docs/images/batch-ready.png)
 
 ## The problem
@@ -32,20 +35,21 @@ weeks after it, and a record of who decided what on every invoice.
 
 ## What it does
 
-- Reads each invoice with Document Intelligence and keeps every field's confidence and the place on the page it came from.
-- Normalises it to one schema and matches the vendor, calling a model only where a rule cannot decide, and rejects any value the
-  model did not read in the document.
-- Validates Spanish VAT and IRPF (income tax withheld) rates, tax IDs, dates and arithmetic, and blocks exact and probable
-  duplicates.
-- Puts the original next to the fields for the clerk; invoices with a finding (a failed check) or a duplicate go to the
-  accounting lead, and the AI never approves or exports.
-- Exports approved invoices in the ERP layout exactly once, with a timeline of every step and decision.
+- **Reads each invoice.** Document Intelligence extracts every field, and Folium keeps its confidence and the place on the page it
+  came from.
+- **Normalises it and matches the vendor.** One schema for every invoice; a model is called only where a rule cannot decide, and
+  any value the model did not read in the document is rejected.
+- **Validates taxes and blocks duplicates.** Spanish VAT and IRPF (income tax withheld) rates, tax IDs, dates and arithmetic, and
+  exact and probable duplicates.
+- **Keeps a person on every invoice.** The original sits next to the fields for the clerk; invoices with a finding (a failed check)
+  or a duplicate go to the accounting lead, and the AI never approves or exports.
+- **Exports exactly once.** Approved invoices leave in the ERP layout, with a timeline of every step and decision.
+
+![Accounts payable with Folium, in BPMN 2.0: the clerk uploads a batch; Folium extracts, normalises, validates and checks duplicates, ready for review in under 30 s; the clerk reviews and approves clean invoices, and the lead resolves findings and duplicates and exports exactly once](docs/images/process-to-be.png)
 
 The clerk's work per invoice becomes the review of a prepared card, with a target of 2 minutes instead of 9 to 19: at the
 client's volume, 225 to 475 hours a month would become about 50. That is the target; the handling time of real clerks is not
 measured yet ([KPIs](#kpis)).
-
-![Accounts payable with Folium, in BPMN 2.0: the clerk uploads a batch; Folium extracts, normalises, validates and checks duplicates, ready for review in under 30 s; the clerk reviews and approves clean invoices, and the lead resolves findings and duplicates and exports exactly once](docs/images/process-to-be.png)
 
 ## Requirements
 
@@ -81,7 +85,7 @@ not for the clerk's review. REQ-12, erasure of a sole trader's personal data, is
 The SLAs are what is committed to the client, each with a stricter internal target, its SLO; both are read in Application
 Insights:
 
-| SLA | Committed | Staging load test, `v1.0.5`'s commit, 2026-11-08 | Production, 2026-11-03 to 2026-11-08 (synthetic use) |
+| SLA | Committed | Staging, the load test of 2026-11-08 on `v1.0.5`'s commit | Production, 2026-11-03 to 2026-11-08 (synthetic use) |
 |---|---|---|---|
 | REQ-10 Availability | 99.5 % in business hours over a calendar month (SLO 99.7 %) | 100 %: no server error over normal, peak and soak | 100 %: 0 server errors in 32,261 business-hours request records, health probes included (business hours of 2026-11-03 to 2026-11-06; the recording of 2026-11-08 fell on a Sunday, outside them) |
 | REQ-11 Ready for review | p95 under 30 s for standard invoices over a calendar month (SLO 25 s) | 24.2 s over 240 invoices | 20.4 s over 75 standard invoices |
@@ -101,10 +105,9 @@ browser that seeds a week of use through the web (2026-11-06 and 2026-11-08) and
 | Field correction rate | 5 % or less of extracted fields | 0.48 % | 4 corrected of 842 fields on approved invoices |
 | Positive feedback | 80 % or more | **75 %**, missed | 18 of 24 votes |
 
-- **Handling time** is mostly the scripted browser's, which approves in seconds; the recording's three batch approvals took 318
-  to 335 s, because the cards stayed open during the takes. It shows the measurement works, not a clerk's time.
-- **Feedback:** the 6 unhelpful votes all come from the scripted week; the walk-through's and the recording's 3 votes were
-  helpful.
+The handling time is mostly the scripted browser's, which approves in seconds; the recording's three batch approvals took 318 to
+335 s, because the cards stayed open during the takes. It shows the measurement works, not a clerk's time. The 6 unhelpful votes
+all come from the scripted week; the walk-through's and the recording's 3 votes were helpful.
 
 ## Repo card
 
@@ -122,6 +125,8 @@ browser that seeds a week of use through the web (2026-11-06 and 2026-11-08) and
 
 ## Architecture
 
+![Per environment, the accounts payable team reaches the Folium app, API and worker, which writes Cosmos DB for the audit, Blob Storage write-once and Service Bus, and sends telemetry to Application Insights; with its managed identity it calls the shared platform: Foundry, Document Intelligence, the registry and Log Analytics](docs/images/architecture.png)
+
 One container app serves the web client and the API and runs the queue consumer. An upload is stored in Blob Storage and
 Cosmos DB and queued in Service Bus; the consumer runs the invoice's workflow and saves its checkpoints in Cosmos DB, so a
 review resumes it on any replica. KEDA, the Container Apps autoscaler, scales the app on HTTP requests and on the queue, from
@@ -130,11 +135,11 @@ which lives in production's resource group; data, telemetry and the shared AI se
 subscription's Container Apps environment quota was already taken
 ([ADR-013](docs/adr/013-one-container-apps-environment-per-product.md)).
 
-![Per environment, the accounts payable team reaches the Folium app, API and worker, which writes Cosmos DB for the audit, Blob Storage write-once and Service Bus, and sends telemetry to Application Insights; with its managed identity it calls the shared platform: Foundry, Document Intelligence, the registry and Log Analytics](docs/images/architecture.png)
-
 ![Production's resource group as deployed, in the Azure portal: the container app and the Container Apps environment in Italy North; Cosmos DB, the app's and the scale rule's managed identities, Service Bus and the storage account in Sweden Central; and the Failure Anomalies smart detector, 8 of its 15 resources](docs/images/resource-group-prod.png)
 
 ## How it works
+
+### One workflow per invoice
 
 ![The workflow per invoice: upload, extract with Document Intelligence, shield with Prompt Shields, normalise with the one agent, validate, review by a person and export; a flagged attack skips the normaliser and goes to validation, and checkpoints from extraction to review let any replica resume it](docs/images/workflow.png)
 
@@ -166,7 +171,7 @@ Recorded in production on 2026-11-08, on `v1.0.5`, through the web (17:47 to 18:
 
 - **A batch, ready for review** (the image at the top): three invoices ready in 13.9 to 15.4 s; six more uploads ready in 8.3
   to 12.5 s.
-- **A file that is not an invoice** refused with `415` before any processing.
+- **A file that is not an invoice:** refused with `415` before any processing.
 - **Every field with its source:** the card shows each field's confidence and page next to the original.
 - **A correction, recorded:** a field corrected and the invoice approved; the timeline below keeps the value before and after.
 - **Findings go to the lead:** a total that does not add up waits for the accounting lead, who rejects it with a reason.
@@ -176,12 +181,11 @@ Recorded in production on 2026-11-08, on `v1.0.5`, through the web (17:47 to 18:
 - **Export exactly once:** five approved invoices left in one batch, and a second export found nothing left.
 - **Ask the invoices:** the assistant's answer cites the invoices it used.
 
-![The web's timeline of the invoice uploaded as inv-026.pdf, dates as day/month/year in Madrid time: on 8/11/2026, uploaded at 17:01:48, extracted with prebuilt-invoice API 2024-11-30, shielded with no attack, normalised by gpt-5-mini-2025-08-07 with prompt normalizer_v2 filling the tax lines, validated with no finding, deduplicated with no duplicate and ready for review at 17:02:03; at 19:19:53 its due date corrected from 2026-06-13 to 2026-07-13 and the invoice approved, with the original's SHA-256 below](docs/images/timeline.png)
-
 The [published demo](https://rodrigo-gomezdelmoral.github.io/product-finance-folium/) replays the same journeys, recorded
-from staging by [`ops/record.py`](ops/record.py). **Accessibility:** Lighthouse 12.8.2 scores it **100** for accessibility
-(mobile, 2026-11-03), and every pull request runs axe on the demo build, failing on any serious or critical WCAG 2.2 AA
-violation.
+from staging by [`ops/record.py`](ops/record.py). Lighthouse 12.8.2 scores it 100 for accessibility (mobile, 2026-11-03), and
+every pull request runs axe on the demo build, failing on any serious or critical WCAG 2.2 AA violation.
+
+![The web's timeline of the invoice uploaded as inv-026.pdf, dates as day/month/year in Madrid time: on 8/11/2026, uploaded at 17:01:48, extracted with prebuilt-invoice API 2024-11-30, shielded with no attack, normalised by gpt-5-mini-2025-08-07 with prompt normalizer_v2 filling the tax lines, validated with no finding, deduplicated with no duplicate and ready for review at 17:02:03; at 19:19:53 its due date corrected from 2026-06-13 to 2026-07-13 and the invoice approved, with the original's SHA-256 below](docs/images/timeline.png)
 
 ## Environments and releases
 
@@ -200,12 +204,12 @@ violation.
 
 ### Load tests
 
+![GitHub Actions starts Locust, the load-testing tool, capped at 120 users, against staging: the Folium app scales to two replicas over the doubles, and the SLA gate passes with a p95 of 24.2 s and 0 failures](docs/images/load-test.png)
+
 `load-test.yml` redeploys the staging digest as a revision where Document Intelligence and the model are replaced by doubles,
 stand-ins that answer with the real services' measured latencies; it runs normal, peak, soak and stress, restores the stable
 revision and sends 20 invoices through the real services. REQ-10 and REQ-11 are read in Application Insights over normal, peak
 and soak, and set the `load-test` commit status that a release requires.
-
-![GitHub Actions starts Locust, the load-testing tool, capped at 120 users, against staging: the Folium app scales to two replicas over the doubles, and the SLA gate passes with a p95 of 24.2 s and 0 failures](docs/images/load-test.png)
 
 Run 42498718441 on 2026-11-08, 16:13 to 17:09 UTC, on commit `8d7b7d2`, released as `v1.0.5`. p50, p95 and p99 are Locust's
 time from the upload until the review card is ready; replicas are Azure Monitor's per-minute maximum during each scenario.
@@ -220,24 +224,24 @@ is ready; Requests/s and Errors count all three.
 | stress | 10 more users a minute, to about 100 in 10 min | 16 s | 27 s | 29 s | 9.02 | 0 of 5,589 requests, 0 of 594 uploads | 1, then 2 |
 | real services | one 20-invoice batch | 43 s | 47 s | 47 s | 2.58 | 0 of 120 requests, 0 of 1 upload | 2 |
 
-- **The gate:** the workflow counts the standard invoices that reached `invoice_ready` in Application Insights from the start of
-  the run to the end of the soak: 240, the 235 that Locust counted in normal, peak and soak (25 + 60 + 150) and 5 that normal's
-  users sent as Locust stopped them, which the app processed but Locust did not record. Their p95 ready time, over the three
-  scenarios together and not per row of the table, is 24.2 s against an SLO of 25 s and an SLA of 30 s, and availability is
-  100 % against 99.7 % and 99.5 %, over all hours of the three scenarios. Peak CPU 0.22 of 0.5 vCPU, memory 0.46 GB, queue 23
-  messages.
-- **No invoice failed:** all 859 invoices uploaded during the run reached `invoice_ready`: the 849 that Locust counted
-  (25 + 60 + 150 + 594 + 20) and 10 that normal's and soak's users sent as Locust stopped them. The run's metrics step reads 2
-  dead-lettered messages (set aside by Service Bus after repeated failed deliveries); they are the two that run 1 dead-lettered
-  on 2026-11-01, still in staging's dead-letter queue, which
-  keeps messages until they are removed. The metric counts the queue, not new arrivals: its hourly maximum has been 2 since
-  2026-11-01 ([`docs/OPERATIONS.md`](docs/OPERATIONS.md#load-tests)).
-- **Batches alone are slower than the month:** a month-end batch on its own has a p95 of 44 s on staging's two replicas;
-  REQ-11 is a monthly p95, and production allows three replicas and keeps one warm in business hours
-  ([ADR-011](docs/adr/011-scale-to-zero-and-cold-start.md)).
-- **Earlier gates:** 24.2 s and 100 % on 2026-11-02 (run 41494700777, `v1.0.1`); 25.6 s and 100 % on 2026-11-03 (run
-  41609663316, `v1.0.4`), above the 25 s SLO and under the 30 s SLA, with stress at 0 of 4,945 requests failed at 8.39 a
-  second.
+For the gate, the workflow counts the standard invoices that reached `invoice_ready` in Application Insights from the start of
+the run to the end of the soak: 240, the 235 that Locust counted in normal, peak and soak (25 + 60 + 150) and 5 that normal's
+users sent as Locust stopped them, which the app processed but Locust did not record. Their p95 ready time, over the three
+scenarios together and not per row of the table, is 24.2 s against an SLO of 25 s and an SLA of 30 s, and availability is
+100 % against 99.7 % and 99.5 %, over all hours of the three scenarios. Peak CPU 0.22 of 0.5 vCPU, memory 0.46 GB, queue 23
+messages.
+
+No invoice failed: all 859 invoices uploaded during the run reached `invoice_ready`, the 849 that Locust counted
+(25 + 60 + 150 + 594 + 20) and 10 that normal's and soak's users sent as Locust stopped them. The run's metrics step reads 2
+dead-lettered messages (set aside by Service Bus after repeated failed deliveries); they are the two that run 1 dead-lettered
+on 2026-11-01, still in staging's dead-letter queue, which keeps messages until they are removed. The metric counts the queue,
+not new arrivals: its hourly maximum has been 2 since 2026-11-01 ([`docs/OPERATIONS.md`](docs/OPERATIONS.md#load-tests)).
+
+Batches alone are slower than the month: a month-end batch on its own has a p95 of 44 s on staging's two replicas; REQ-11 is a
+monthly p95, and production allows three replicas and keeps one warm in business hours
+([ADR-011](docs/adr/011-scale-to-zero-and-cold-start.md)). The earlier gates gave 24.2 s and 100 % on 2026-11-02 (run
+41494700777, `v1.0.1`) and 25.6 s and 100 % on 2026-11-03 (run 41609663316, `v1.0.4`), above the 25 s SLO and under the 30 s
+SLA, with stress at 0 of 4,945 requests failed at 8.39 a second.
 
 ![Staging's replica count in the Azure portal on 2026-11-08, 17:05 to 17:32 Madrid time (UTC+1): one replica from 17:05, when the staging take woke the app, two from the peak scenario's batches at 17:19, and back to one during the soak at 17:27](docs/images/load-test-replicas.png)
 
@@ -263,10 +267,11 @@ EUR a month, from the Retail Prices API on 2026-10-30 and 2026-10-31 ([`docs/cos
 month's total with that use, the at-rest costs included; production's 3 was estimated before the business-hours replica, which
 adds 3 to 4 in both columns.
 
-| | At rest | In use | Budget |
-|---|---|---|---|
-| Staging | about 0.3 | about 7, with evaluation, load tests and real-service runs | 10 |
-| Production | about 1.5, plus 3 to 4 for the business-hours replica | about 3 with demo use, plus 3 to 4 for the business-hours replica | 20 |
+| | Staging | Production |
+|---|---|---|
+| At rest | about 0.3 | about 1.5, plus 3 to 4 for the business-hours replica |
+| In use | about 7, with evaluation, load tests and real-service runs | about 3 with demo use, plus 3 to 4 for the business-hours replica |
+| Budget | 10 | 20 |
 
 At the client's volume, 1,500 invoices and 3,000 pages a month, the estimate is about 38 € a month, about 0.025 € per invoice,
 against 3 to 8 € of manual work per invoice. Document Intelligence is 26.4 € of it, `gpt-5-mini` about 5.3 € and Container
@@ -278,9 +283,9 @@ Apps about 4 €. The estimate is compared with Cost Management per environment 
 |---|---|---|
 | Reliability | one queue with a dead-letter queue, retries with `Retry-After`, an idempotent consumer, checkpoints, probes, point-in-time restore drilled | no zone redundancy; cold DR, with no standby region: recovery is a redeploy and a restore |
 | Security | managed identities, local auth off, built-in sign-in with app roles, Prompt Shields, pinned dependencies and actions | no private endpoints, web application firewall or Defender plans; staging and production share one environment |
-| Cost | scale to zero, serverless Cosmos DB, Service Bus Basic, `max_tokens`, file and batch limits, budgets per environment | one business-hours replica in production for REQ-11 |
-| Operational excellence | Bicep with `what-if`, one image deployed by digest, canary release with rollback, KPI and SLA workbook | one operator |
-| Performance | KEDA on HTTP and queue, clients built once, vendor master cached | the apps in `italynorth`, the data in `swedencentral` |
+| Cost Optimization | scale to zero, serverless Cosmos DB, Service Bus Basic, `max_tokens`, file and batch limits, budgets per environment | one business-hours replica in production for REQ-11 |
+| Operational Excellence | Bicep with `what-if`, one image deployed by digest, canary release with rollback, KPI and SLA workbook | one operator |
+| Performance Efficiency | KEDA on HTTP and queue, clients built once, vendor master cached | the apps in `italynorth`, the data in `swedencentral` |
 
 ## Deploy
 
@@ -300,9 +305,10 @@ GitHub environments and for pull requests; no client secret anywhere.
 
 ### GitHub secrets and variables
 
-Secrets `AZURE_CLIENT_ID` per environment, `AZURE_CLIENT_ID_PR`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and
-`ALERT_EMAIL_ADDRESS`; variables `ACR_NAME`, `SHARED_RESOURCE_GROUP`, `FOUNDRY_ACCOUNT_ENDPOINT`, `FOUNDRY_PROJECT_ENDPOINT`,
-`FOUNDRY_MODEL`, and per environment `AUTH_CLIENT_ID`, `RESOURCE_GROUP` and `CONTAINER_APP_NAME`.
+- Repository secrets: `AZURE_CLIENT_ID_PR`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `ALERT_EMAIL_ADDRESS`.
+- Per environment (`staging`, `production`): the secret `AZURE_CLIENT_ID` and the variables `AUTH_CLIENT_ID`, `RESOURCE_GROUP`
+  and `CONTAINER_APP_NAME`.
+- Variables: `ACR_NAME`, `SHARED_RESOURCE_GROUP`, `FOUNDRY_ACCOUNT_ENDPOINT`, `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL`.
 
 ### Identities
 
@@ -314,17 +320,17 @@ the roles `Invoice.Process` and `Invoice.Approve`, assignment required.
 ## Documentation
 
 - [`docs/PRODUCT.md`](docs/PRODUCT.md): client, process as-is and to-be, requirements with acceptance criteria, KPIs, SLOs and
-  the ERP export layout.
+  the ERP export layout
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md): promotion, rollback, restore, alerts, incidents, load tests, DORA metrics, the
-  walk-through and the recording in production, and the known limitations.
-- [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): assets and trust boundaries, STRIDE threats and residual risks.
+  walk-through and the recording in production, and the known limitations
+- [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): assets and trust boundaries, STRIDE threats and residual risks
 - [`docs/RESPONSIBLE_AI.md`](docs/RESPONSIBLE_AI.md): the impact assessment: intended uses, stakeholders, fairness, adverse
-  impact and data requirements.
-- [`docs/evaluation.md`](docs/evaluation.md): the evaluation gate, its datasets and results, and experiment 001.
-- [`docs/cost.md`](docs/cost.md): prices, the estimate per environment and per invoice, and the options declined.
-- [`docs/adr/`](docs/adr/): ADR-001 to ADR-014.
+  impact and data requirements
+- [`docs/evaluation.md`](docs/evaluation.md): the evaluation gate, its datasets and results, and experiment 001
+- [`docs/cost.md`](docs/cost.md): prices, the estimate per environment and per invoice, and the options declined
+- [`docs/adr/`](docs/adr/): the 14 architecture decisions
 - [`CHANGELOG.md`](CHANGELOG.md) and the latest release,
-  [`v1.0.5`](https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/releases/tag/v1.0.5) (2026-11-08).
+  [`v1.0.5`](https://github.com/Rodrigo-GomezdelMoral/product-finance-folium/releases/tag/v1.0.5) (2026-11-08)
 
 ## Author
 
