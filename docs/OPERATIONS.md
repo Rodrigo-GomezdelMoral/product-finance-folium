@@ -1,10 +1,11 @@
 # Operations
 
-How Folium is promoted, watched, restored and paid for. Status on 2026-11-03: `v1.0.0` stopped before production, because
+How Folium is promoted, watched, restored and paid for. Status on 2026-11-10: `v1.0.0` stopped before production, because
 creating its regional Container Apps environment hit the subscription's limit; `v1.0.1` was the first release in production,
-and `v1.0.2`, `v1.0.3` and `v1.0.4` followed, each promoted by `release.yml` after the author's approval. Staging is deployed
-on every merge and was used live through the API and the web. Production's vendor master was seeded on 2026-11-03, and every
-Must was then walked through in production on `v1.0.4` through the API (below). The load tests, cold starts, restore and
+and `v1.0.2` to `v1.0.5` followed, each promoted by `release.yml` after the author's approval. Since 2026-11-08 staging and
+production run `v1.0.5`'s commit, `8d7b7d2`. Staging is deployed on every merge and was used live through the API and the web.
+Production's vendor master was seeded on 2026-11-03; every Must was then walked through in production on `v1.0.4` through the
+API, and on 2026-11-08 the demo recording used it on `v1.0.5` through the web (below). The load tests, cold starts, restore and
 rollback drills, DORA figures and Advisor reviews are recorded below, and the known limitations close this file.
 
 ## Environments and promotion
@@ -64,8 +65,9 @@ production, the app's).
   100 %; staging ended on `v1.0.4`.
 - **Fastest path:** an earlier revision is kept inactive (up to five).
   `az containerapp revision activate` and `az containerapp ingress traffic set --revision-weight <old>=100 <new>=0` restore it
-  without a deployment; the next release brings the Bicep back in line. Not rehearsed for `v1.0.4`, so its time, cold start
-  included, is not measured; the inactive `v1.0.3` revision is kept as its target. Planned for the next release.
+  without a deployment; the next release brings the Bicep back in line. Not rehearsed in production, so its time, cold start
+  included, is not measured; with `v1.0.5` serving, the inactive `v1.0.4` revision (`ca-folium-prod--p5-1-88991bd`) is kept
+  as its target (2026-11-10). Planned for the next release.
 
 ## Urgent patch
 
@@ -152,16 +154,16 @@ retirement.
 Read from GitHub Actions runs (`gh run list --workflow <file> --json conclusion,createdAt,updatedAt,headSha`):
 deployment frequency (successful `release.yml` runs a week), lead time for changes (merge commit to the end of the successful
 `deploy.yml` run, and to production for releases), change failure rate (`release.yml` runs that rolled back over all
-releases) and time to restore (from a failed or rolled-back release to the next successful one). Read on 2026-11-03:
+releases) and time to restore (from a failed or rolled-back release to the next successful one). Read on 2026-11-10:
 
 | Metric | Value |
 |---|---|
-| Deployment frequency, production | 4 successful releases in two days: `v1.0.1` and `v1.0.2` on 2026-11-02, `v1.0.3` and `v1.0.4` on 2026-11-03 |
-| Lead time, merge to production | `v1.0.1` 1 h 23 min, `v1.0.2` 20 min, `v1.0.3` 20 min, `v1.0.4` 1 h 32 min (its one-hour load test included), each with the approval and the ten-minute canary |
-| Lead time, merge to staging | 3.5 to 4.5 minutes over the last four merges |
-| Change failure rate | 1 of 5 release runs (20 %): `v1.0.0` failed in `promote` before production, with no production impact |
+| Deployment frequency, production | 5 successful releases in 7 days: `v1.0.1` and `v1.0.2` on 2026-11-02, `v1.0.3` and `v1.0.4` on 2026-11-03, `v1.0.5` on 2026-11-08 |
+| Lead time, merge to production | `v1.0.1` 1 h 23 min, `v1.0.2` 20 min, `v1.0.3` 20 min, `v1.0.4` 1 h 32 min (its one-hour load test included), each with the approval and the ten-minute canary; `v1.0.5`, merged on 2026-11-03, was held for the demo recording and published on 2026-11-08, and its release run took 16 min 32 s |
+| Lead time, merge to staging | 3 min 50 s to 4 min 28 s over the last five merges |
+| Change failure rate | 1 of 6 release runs (17 %): `v1.0.0` failed in `promote` before production, with no production impact; no release has been rolled back |
 | Time to restore | 9 h 46 min, from the `v1.0.0` failure to the `v1.0.1` success |
-| Staging deployments | 11 `deploy.yml` runs on merges, 2 failed (2026-10-31); 2 dispatched runs for the rollback drill, both successful |
+| Staging deployments | 13 `deploy.yml` runs on merges, 2 failed (2026-10-31), the next success 10 h 28 min later; 2 dispatched runs for the rollback drill, both successful |
 
 ## Load tests
 
@@ -169,15 +171,28 @@ releases) and time to restore (from a failed or rolled-back release to the next 
 `DOUBLES=load` and made the only active one, then **normal** (5 users, one invoice a minute each, 5 minutes), **peak** (three
 20-invoice batches in 2 minutes), **soak** (normal rate, 30 minutes) and **stress** (ramp until p95 passes 30 s or errors pass
 1 %); the stable revision is restored and **20 invoices go through the real services**. REQ-10 and REQ-11 are read from
-Application Insights over normal, peak and soak; if both hold, the workflow sets the `load-test` commit status to `success`.
-Results, with date, go below. Dispatch it only with no deployment queued: it shares the `staging` concurrency
-group with `deploy.yml`, and a newer pending run cancels an older pending one.
+Application Insights from the start of the run to the end of the soak: availability over every request, and the p95 of
+`invoice_ready` over the standard invoices that reached it, whose count the gate reports; if both hold, the workflow sets the
+`load-test` commit status to `success`. Results, with date, go below. Dispatch it only with no deployment queued: it shares
+the `staging` concurrency group with `deploy.yml`, and a newer pending run cancels an older pending one.
 
-p50, p95 and p99 are Locust's `READY invoice` entries: from the upload until the web would show the review card. Queue,
-replicas, CPU and memory are maxima over the whole run on the doubles.
+p50, p95 and p99 are Locust's `READY invoice` entries: from the upload until the web would show the review card. Requests are
+Locust's entries: the uploads, the status reads that poll each invoice every 2 s and one `READY invoice` entry per invoice;
+Requests/s and the request counts include all three. Queue, replicas, CPU and memory are maxima over the whole run on the
+doubles.
 
 | Run | Scenario | p50 | p95 | p99 | Requests/s | Errors | Users | Queue | Replicas | CPU | Memory |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| 5, 2026-11-08 | normal, doubles | 16 s | 22 s | 22 s | 0.87 | 0 of 222 requests, 0 of 25 uploads | 5 | 23 | 2 | 0.22 vCPU | 0.46 GB |
+| 5, 2026-11-08 | peak, doubles | 25 s | 44 s | 44 s | 3.18 | 0 of 338 requests, 0 of 3 uploads | 60 invoices in 3 batches | 23 | 2 | 0.22 vCPU | 0.46 GB |
+| 5, 2026-11-08 | soak 30 min, doubles | 16 s | 18 s | 18 s | 0.75 | 0 of 1,324 requests, 0 of 150 uploads | 5 | 23 | 2 | 0.22 vCPU | 0.46 GB |
+| 5, 2026-11-08 | stress, doubles | 16 s | 27 s | 29 s | 9.02 | 0 of 5,589 requests, 0 of 594 uploads | ramp, 10 a minute, stopped at about 103 | 23 | 2 | 0.22 vCPU | 0.46 GB |
+| 5, 2026-11-08 | 20 invoices, real services | 43 s | 47 s | 47 s | 2.58 | 0 of 120 requests, 0 of 1 upload | 1 batch | | 2 | | |
+| 4, 2026-11-03 | normal, doubles | 16 s | 22 s | 22 s | 0.87 | 0 of 25 uploads | 5 | 20 | 2 | 0.25 vCPU | 0.55 GB |
+| 4, 2026-11-03 | peak, doubles | 28 s | 41 s | 41 s | 3.03 | 0 | 60 invoices in 3 batches | 20 | 2 | 0.25 vCPU | 0.55 GB |
+| 4, 2026-11-03 | soak 30 min, doubles | 16 s | 16 s | 18 s | 0.73 | 0 of 151 uploads | 5 | 20 | 2 | 0.25 vCPU | 0.55 GB |
+| 4, 2026-11-03 | stress, doubles | 16 s | 25 s | 29 s | 8.39 | 0 of 4,945 requests, 0 of 540 uploads | ramp, 10 a minute, stopped at about 98 | 20 | 2 | 0.25 vCPU | 0.55 GB |
+| 4, 2026-11-03 | 20 invoices, real services | 46 s | 50 s | 50 s | 2.39 | 0 | 1 batch | | | | |
 | 3, 2026-11-02 | normal, doubles | 16 s | 29 s | 29 s | 0.84 | 0 of 25 uploads | 5 | 25 | 2 | 0.20 vCPU | 0.49 GB |
 | 3, 2026-11-02 | peak, doubles | 27 s | 40 s | 41 s | 2.70 | 0 | 60 invoices in 3 batches | 25 | 2 | 0.20 vCPU | 0.49 GB |
 | 3, 2026-11-02 | soak 30 min, doubles | 16 s | 17 s | 17 s | 0.73 | 0 of 150 uploads | 5 | 25 | 2 | 0.20 vCPU | 0.49 GB |
@@ -194,10 +209,33 @@ replicas, CPU and memory are maxima over the whole run on the doubles.
 | 1, 2026-11-01 | stress, doubles | 16 s | 20 s | 20 s | 3.70 | 3 of 110 uploads `503` | ramp, 10 a minute | 16 | 2 | 0.13 vCPU | 0.52 GB |
 | 1, 2026-11-01 | 20 invoices, real services | 56 s | 64 s | 64 s | 2.44 | 0 | 1 batch | | 1 to 2 | | |
 
+**Run 5 (42498718441, commit `8d7b7d2`, released as `v1.0.5`), 2026-11-08, 16:13 to 17:09 UTC, during the demo recording:
+REQ-10 and REQ-11 met.** Over normal, peak and soak, Application Insights gives a p95 of `invoice_ready` of **24.2 s** over 240
+standard invoices and an availability of **100 %**; the workflow set `load-test` to `success` on the tested commit. The 240 are
+the 235 that Locust counted in normal, peak and soak (25 + 60 + 150) and 5 that normal's users sent as Locust stopped them,
+which the app processed but Locust did not record (Application Insights, read on 2026-11-10). No request failed in any
+scenario, and every invoice uploaded during the run reached `invoice_ready`, 859 of 859: the 849 that Locust counted
+(25 + 60 + 150 + 594 + 20) and 10 that normal's and soak's users sent as Locust stopped them; the soak's 5 were ready after
+the soak ended, outside the gate. Replicas, from the app's `Replicas` metric per minute: 1 in normal, 2 from the peak's
+batches (16:19), 1 again from 16:27 in the soak, and 2 from 16:59 in stress and in the real-services batch. Peak CPU was 0.22 of 0.5 vCPU and memory 0.46 GB. The real-services batch's upload
+was answered after 14 s, because the restored stable revision started from zero. Since `v1.0.4` only documents had changed,
+so ADR-014 did not require this run; it ran as part of the recording.
+
+- **Dead-lettered messages: 2, none new** (checked read-only on 2026-11-10). The metrics step reads the maximum of Service
+  Bus's `DeadletteredMessages`, which counts the messages sitting in the dead-letter queue, not new arrivals. The two are run
+  1's, dead-lettered on 2026-11-01 in the 09:00 UTC hour and never removed: the metric's hourly maximum has been 2 ever since,
+  during this run too, and the `invoices` queue of `sb-folium-stg-swc` still held 2 dead-lettered and 0 active messages on
+  2026-11-10. Runs 2, 3 and 4 read the same 2. Production's dead-letter queue is empty.
+
+**Run 4 (41609663316, commit `88991bd`, released as `v1.0.4`), 2026-11-03 from 09:16 UTC: REQ-10 and REQ-11 met.** A p95 of
+`invoice_ready` of **25.6 s** over the gate's 240 standard invoices, above the 25 s SLO and under the 30 s SLA, and an
+availability of **100 %**; no request failed in any scenario. Peak CPU was 0.25 of 0.5 vCPU, memory 0.55 GB, two replicas.
+`v1.0.4` changed `infra/`, so this run was its release gate (ADR-014).
+
 **Run 3 (41494700777, commit `f92f034`, released as `v1.0.1`), on `cae-folium-env`, verdict 2026-11-02: REQ-10 and REQ-11
-met.** Over normal, peak and soak, Application Insights gives a p95 of `invoice_ready` of **24.2 s** over 240 invoices and an
-availability of **100 %**; the workflow set `load-test` to `success` on the tested commit. These are the figures of the
-environment that runs today. One status read failed in stress (1 of 5,376 requests, 0.02 %) and no upload failed; the
+met.** Over normal, peak and soak, Application Insights gives a p95 of `invoice_ready` of **24.2 s** over the gate's 240 standard
+invoices and an availability of **100 %**; the workflow set `load-test` to `success` on the tested commit. These are the
+figures of the environment that runs today. One status read failed in stress (1 of 5,376 requests, 0.02 %) and no upload failed; the
 dead-letter queue's maximum stayed at run 1's two messages. Peak CPU was 0.20 of 0.5 vCPU, memory under 0.5 GB, two
 replicas. The real-services batch's upload was answered after 18 s, because the restored stable revision started from zero.
 `v1.0.2` and `v1.0.3` changed only web, document and workflow paths and ran no load test (ADR-014). Both gates measure all
@@ -284,7 +322,29 @@ Events in production on 2026-11-03: 6 `invoice_uploaded`, 6 `invoice_ready`, 1 `
 "Which invoices are waiting for approval?". Since `v1.0.4` was promoted: 2,036 requests, 0 server errors, 0 exceptions, 0 failed
 dependencies. Requests are sampled by the Azure Monitor exporter (581 rows stand for 623 requests after 12:00 UTC); KPI events
 are not (16 rows, 16 events). The walk-through used the API, as the published demo's runs did; signing in through a browser
-and comparing the deployed web with the published demo were not part of it (Known limitations).
+and using the deployed web were not part of it; the recording of 2026-11-08 did both (below).
+
+## Recording in production
+
+2026-11-08, on `v1.0.5` (revision `ca-folium-prod--p6-1-8d7b7d2`, at 100 % since release run 42504341261), signed in through
+a browser to the deployed production web. Before it, a scripted browser seeded a week of use through the same web (2026-11-06,
+and 2026-11-08 from 14:52 to 16:03 UTC, on `v1.0.4`). The load test of the same day is run 5 above.
+
+| Step | What happened in production |
+|---|---|
+| Release | `v1.0.5` published at 17:18 UTC; `verify` passed, the author approved, and `promote` ran from 17:22 to 17:35 UTC; the ten-minute canary saw only the new revision's health probes (70 requests, 0 server errors) |
+| REQ-01 | a text file refused with `415`; a batch of three (PDF, PDF, JPEG) ready in 13.9 to 15.4 s; six more uploads ready in 8.3 to 12.5 s |
+| REQ-02, REQ-03 | every field on the card with its confidence and page, and the matched vendor |
+| REQ-04, REQ-05 | a total mismatch and a probable duplicate sent to the lead and rejected with a reason |
+| REQ-06 | 2 corrections, each in the timeline and as a `field_corrected` event; 4 approvals through the web |
+| REQ-07 | five approved invoices exported in one batch; a second export found nothing left |
+| REQ-08 | an approved invoice's timeline from upload to approval, with the model and prompt versions |
+| Prompt Shields | an invoice with hidden instructions flagged `possible_injection`, with the normaliser skipped, and rejected by the lead |
+| REQ-09 (Should) | a cited answer from the assistant; 2 `feedback` events, both helpful |
+
+Events from 17:47 to 18:22 UTC on `v1.0.5`: 9 `invoice_uploaded`, 9 `invoice_ready`, 4 `invoice_approved`, 2 `field_corrected`,
+5 `invoice_exported` and 2 `feedback`. The KPI and SLA figures over 2026-11-03 to 2026-11-08 are in the README, all of them
+from synthetic use.
 
 ## Azure Advisor
 
@@ -306,21 +366,19 @@ names the storage account yet.
 
 ## Known limitations
 
-Open on 2026-11-03, each with its figure and the reason it stays open.
+Open on 2026-11-10, each with its figure and the reason it stays open.
 
 | Limitation | Figure and date | Reason, and when it is revisited |
 |---|---|---|
-| Production use is the walk-through only | 6 invoices, 1 approval, 1 export, 2 questions and 1 `feedback` event, 2026-11-03 | The author's walk-through, not client use; production's workbook measures the client's |
-| SLA figures not yet over a month | REQ-10 100 % over 4,556 business-hours requests and REQ-11 19.2 s over 5 standard invoices in production, one morning of 2026-11-03; the load-test gate gave 100 % and 24.2 s over 240 invoices (run 3, 2026-11-02) | The SLA window is a calendar month of business hours; production's workbook and alerts measure it as use builds up |
-| Handling time not measured in production | the walk-through's one approval came through the API, which sends no `review_seconds`, 2026-11-03 | Only the web measures it; the first approvals through the web give the figure |
-| Browser sign-in and the deployed web not checked in production | `v1.0.4` walked through the API only, 2026-11-03; `/` and `/api/invoices` answer `401` without a session | Same image digest as staging (`sha256:4681a0ec7107…`); the published demo is built from the same `web/` as that image. Residual risk: a sign-in or display fault seen only in production. Planned at the next release |
-| The canary watch saw no traffic | `v1.0.2`'s, `v1.0.3`'s and `v1.0.4`'s ten-minute canaries passed while production served only probes | A canary proves something only with traffic; kept as a gate |
-| Fast rollback in production not rehearsed | not run for `v1.0.4`, 2026-11-03; the planned rollback in staging took 192 s and 188 s the same day | Residual risk: the time of switching revisions in production, cold start included, is unmeasured. Planned at the next release |
+| Production use is synthetic | 85 invoices uploaded, 48 approvals, 43 exports and 24 `feedback` events from 2026-11-03 to 2026-11-08: the walk-through and its rehearsal, the scripted browser's week and the recording | Not client use; production's workbook measures the client's |
+| SLA figures not yet over a month | production, 2026-11-03 to 2026-11-08: REQ-10 100 % over 32,261 business-hours request records (to 2026-11-06, health probes included) and REQ-11 20.4 s over 75 standard invoices; the load-test gate gave 100 % and 24.2 s over 240 invoices (run 5, 2026-11-08) | The SLA window is a calendar month of business hours; production's workbook and alerts measure it as use builds up |
+| Handling time measured only on synthetic approvals | median 3.4 s over 43 approvals through the web, 2026-11-06 and 2026-11-08, most of them the scripted browser's; the recording's three batch approvals took 318 to 335 s with the cards open during the takes | Only clerks' reviews measure the 2-minute target; re-read with real use |
+| The canary watch saw no traffic | `v1.0.2`'s to `v1.0.5`'s ten-minute canaries passed while production served only probes; `v1.0.5`'s saw 70 health probes and 0 server errors, 2026-11-08 | A canary proves something only with traffic; kept as a gate |
+| Fast rollback in production not rehearsed | not run for `v1.0.4` or `v1.0.5`, 2026-11-10; the planned rollback in staging took 192 s and 188 s on 2026-11-03 | Residual risk: the time of switching revisions in production, cold start included, is unmeasured. Planned at the next release |
 | Alerts not fired on purpose | definitions checked and none fired in 30 days, 2026-11-03; no test notification sent | Residual risk: a delivery fault between the action group and its receiver would go unnoticed. Planned at the next maintenance window |
 | REQ-12 erasure (Should) tested only | `test_erase_redacts_personal_fields` passes; neither the refusal inside retention nor an erasure has run live, 2026-11-03 | Invoices are kept six years, so the first erasure of a 2026 invoice is possible in 2033; the live refusal is planned at the next maintenance window, in staging only |
 | Assistant's reading of "waiting for approval" | in production it answered "There are no invoices waiting for approval." while two invoices were `ready` (waiting for the clerk's review): it reads the question as `with_lead`, as staging's recorded answer did, 2026-11-03 | REQ-09's citation criterion holds; a wording change in the assistant's prompt goes through the evaluation gate, so it waits for the next prompt change |
 | Cost per invoice estimated, not measured | estimate 0.025 €; month to date on 2026-11-02: staging 0.85 € (Cosmos DB), production 0.006 € (Azure Monitor), no Container Apps charge yet | The Foundry and Document Intelligence spend sits in the shared group and cannot be split per product; compared with Cost Management after a month of use |
-| README KPIs from the operator's tests | "6 approvals, 83 %" was true at mid-day on 2026-11-01; by the end of that day 7 approvals, touchless 71.4 % (5 of 7), 2 corrected fields, two approvals scripted | Operator tests, not client use; production's workbook replaces them |
 | Node 26 for the web build stage | Dependabot PR #8 (Node 24.22.2 to 26.12.1) closed by the author on 2026-11-02 | The change is in the `Dockerfile`, a runtime path, so it needs a load test, and the stage only builds static files; Node 24 is supported until 2028-04-30. Revisited at the next release that changes the runtime, or by early 2028 at the latest |
 | Storage without zone redundancy | Advisor, High, staging, 2026-11-02 | Single-zone trade-off of the whole product (above) |
 | CI principals' privileges | the RBAC Administrator condition of both CI principals still allows *Key Vault Secrets User*, although there is no vault (ADR-009); both hold *Log Analytics Contributor* on the shared workspace, justified in no ADR | Identity changes are the author's; narrowed at the next identity review |
@@ -330,3 +388,6 @@ Open on 2026-11-03, each with its figure and the reason it stays open.
 | Workflow lint | actionlint 1.7.12 gives four shellcheck notes, none an error: two redirect groupings, one unquoted variable, one unused loop variable | Style only; fixed with the next change to those workflows |
 | Code budget at its limit | Python 1,450 of 1,450 and tests 700 of 700 lines | Any code fix must be budget-neutral; the author decides any raise |
 | Demo details | in demo mode the composer is disabled with a placeholder, cut on mobile; the profile reads "Demo" until a run plays | The demo replays recorded runs only; free text needs the deployed system |
+
+Closed by the recording of 2026-11-08 ([Recording in production](#recording-in-production)): browser sign-in and the deployed
+web, used in production on `v1.0.5`, and handling time, now measured in production (on synthetic approvals, above).
