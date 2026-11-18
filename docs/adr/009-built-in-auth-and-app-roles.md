@@ -25,7 +25,7 @@ Entra ID, except `/healthz` for the probes and the canary health check. Bearer t
 are accepted, so the staging CI principal, given `Invoice.Process` by `04-signin.sh` in phase 7, runs the smoke test and
 Locust. The issuer is built from the deployment's tenant, so no identifier is written in the repository.
 
-**No Key Vault.** The build prompt kept a vault only for a sign-in secret "if the platform still needs one"; it does not, so
+**No Key Vault.** The specification kept a vault only for a sign-in secret "if the platform still needs one"; it does not, so
 the vault is not created and the app identity gets no Key Vault role.
 
 **`04-signin.sh` (phase 7) must set** on `folium-<env>`: a web redirect URI `<app URL>/.auth/login/aad/callback`, ID token

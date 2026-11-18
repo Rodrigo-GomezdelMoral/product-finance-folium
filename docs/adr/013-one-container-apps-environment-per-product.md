@@ -29,7 +29,7 @@ values and preflight skips them. Only a module or a bare resource validated with
 2. **Production in the staging environment.** No quota needed, but production would run in `cae-folium-stg-spc`, owned by
    the staging deployment: a name, an owner and a teardown that all say staging.
 3. **A separate region for production only.** Still one environment per Folium environment, so Folium alone takes 2 of the
-   subscription's 5, and the next product cannot deploy production.
+   subscription's 5, and the next workload cannot deploy production.
 4. **One environment per product,** `cae-folium-env`, neutral in name, shared by the staging and production apps and owned
    by the production deployment.
 

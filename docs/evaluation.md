@@ -66,7 +66,7 @@ is the generator's output, so the invoices, their hashes and the Document Intell
   input, and keeps the report as an artifact.
 - The Document Intelligence cache is restored and saved in the Actions cache on every run. Caches saved on `main` are shared
   with pull requests, so one full run on `main` warms them all.
-- The check blocks the merge once the ruleset requires it: `../_scripts/product-finance-folium/02-required-checks.sh` adds
+- The check blocks the merge once the ruleset requires it: a script the author keeps outside the repository adds
   `python` (CI) and `evaluate` as required status checks to `protect-main`.
 
 ## Results, 2026-10-31
