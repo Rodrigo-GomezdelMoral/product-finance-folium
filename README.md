@@ -11,7 +11,7 @@ exported twice. In production, 95 % of standard invoices were ready for review w
 2026-11-08, synthetic use), and the staging load test of `v1.0.5` kept that 95th percentile (p95) at 24.2 s over 240 invoices,
 against the 30 s committed in the SLA (2026-11-08).
 
-<p align="center"><a href="https://rodrigogomezdelmoral.es/en/projects/product-finance-folium#video"><img src="docs/images/author/demo-video.png" alt="Watch the demo video" height="48"></a></p>
+<p align="center"><a href="https://rodrigogomezdelmoral.es/en/projects/product-finance-folium#video"><img src="docs/images/author/demo-video.png" alt="Watch the AI solution video" height="48"></a></p>
 
 **Built to standard.** This AI solution is designed, built, validated and operated in alignment with the **Microsoft
 Responsible AI Standard** (Fairness, Reliability and Safety, Privacy and Security, Inclusiveness, Transparency,
