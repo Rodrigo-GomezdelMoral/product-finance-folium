@@ -2,16 +2,33 @@
 
 Built by **Rodrigo Martín Gómez del Moral Herranz**
 
-<a href="https://github.com/Rodrigo-GomezdelMoral"><img src="docs/images/author/github.png" alt="GitHub" height="36"></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/in/rodrigo-mart%C3%ADn-g%C3%B3mez-del-moral-herranz"><img src="docs/images/author/linkedin.png" alt="LinkedIn" height="36"></a>&nbsp;&nbsp;<a href="https://rodrigogomezdelmoralherranz.es"><img src="docs/images/author/portfolio.png" alt="Portfolio" height="36"></a>
+<a href="mailto:rodrigo.gomezdelmoral@gmail.com"><img src="docs/images/author/email.png" alt="Email" height="36"></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/in/rodrigo-mart%C3%ADn-g%C3%B3mez-del-moral-herranz"><img src="docs/images/author/linkedin.png" alt="LinkedIn" height="36"></a>&nbsp;&nbsp;<a href="https://github.com/Rodrigo-GomezdelMoral"><img src="docs/images/author/github.png" alt="GitHub" height="36"></a>&nbsp;&nbsp;<a href="https://rodrigogomezdelmoral.es"><img src="docs/images/author/portfolio.png" alt="Professional Portfolio" height="36"></a>
 
-Folium is an AI product on Azure for the accounts payable team of a Spanish wholesale distributor, which keys its supplier
+Folium is an AI solution on Azure for the accounts payable team of a Spanish wholesale distributor, which keys its supplier
 invoices by hand, 1,500 a month at 9 to 19 minutes each: it reads every field with its confidence and its place on the page,
 validates Spanish taxes and blocks duplicates, then leaves a review card on which a person decides every invoice, and nothing is
 exported twice. In production, 95 % of standard invoices were ready for review within 20.4 s (75 invoices, 2026-11-03 to
 2026-11-08, synthetic use), and the staging load test of `v1.0.5` kept that 95th percentile (p95) at 24.2 s over 240 invoices,
 against the 30 s committed in the SLA (2026-11-08).
 
-**Live demo:** <https://rodrigo-gomezdelmoral.github.io/product-finance-folium/> - runs recorded from staging, replayed with their real timings and no backend.
+<p align="center"><a href="https://rodrigogomezdelmoral.es/en/projects/product-finance-folium#video"><img src="docs/images/author/demo-video.png" alt="Watch the demo video" height="48"></a></p>
+
+**Built to standard.** This AI solution is designed, built, validated and operated in alignment with the **Microsoft
+Responsible AI Standard** (Fairness, Reliability and Safety, Privacy and Security, Inclusiveness, Transparency,
+Accountability) and the **Azure Well-Architected Framework** (Reliability, Security, Cost Optimization, Operational
+Excellence, Performance Efficiency).
+
+Every engineering decision is driven by a concrete requirement and grounded in one or more of these principles and
+pillars, with supporting evidence documented in this repository. These principles guide the development of
+responsible, reliable and scalable AI solutions through specialised engineering practices in evaluation, safety,
+identity, operations and cost management.
+
+See how [each principle](#microsoft-responsible-ai-standard) and [each pillar](#azure-well-architected-framework) is
+applied.
+
+<p align="center"><a href="https://rodrigo-gomezdelmoral.github.io/product-finance-folium/"><img src="docs/images/author/live-demo.png" alt="Live demo" height="48"></a></p>
+
+Nine runs recorded from staging on 2026-11-01, replayed in the browser with their real timings, no backend and no sign-in: a batch of invoices left ready for review, a correction and approval, a probable duplicate blocked, hidden instructions refused, an export made exactly once and the assistant answering with citations.
 
 > **All data is synthetic.** The invoices come from [`ops/make_invoices.py`](ops/make_invoices.py), and the client's volumes
 > and times are the product brief's ([`docs/PRODUCT.md`](docs/PRODUCT.md)). Production's figures come from the author's
@@ -31,7 +48,7 @@ the mistakes it lets through, an invoice entered twice or a wrong tax line, surf
 or the VAT return is already at risk. What the client buys is time back for the clerks, errors caught before the ERP instead of
 weeks after it, and a record of who decided what on every invoice.
 
-![Accounts payable today, in BPMN 2.0: eight manual steps by the clerk, from receiving the invoice to filing the PDF, 9 to 19 minutes per invoice; duplicates and wrong tax lines surface weeks later](docs/images/process-as-is.png)
+![Accounts payable today, in BPMN 2.0: eight manual steps by the clerk, from receiving the invoice to filing the PDF, 9 to 19 minutes per invoice; duplicates and wrong tax lines surface weeks later](docs/images/process-as-is.svg)
 
 ## What it does
 
@@ -45,7 +62,7 @@ weeks after it, and a record of who decided what on every invoice.
   or a duplicate go to the accounting lead, and the AI never approves or exports.
 - **Exports exactly once.** Approved invoices leave in the ERP layout, with a timeline of every step and decision.
 
-![Accounts payable with Folium, in BPMN 2.0: the clerk uploads a batch; Folium extracts, normalises, validates and checks duplicates, ready for review in under 30 s; the clerk reviews and approves clean invoices, and the lead resolves findings and duplicates and exports exactly once](docs/images/process-to-be.png)
+![Accounts payable with Folium, in BPMN 2.0: the clerk uploads a batch; Folium extracts, normalises, validates and checks duplicates, ready for review in under 30 s; the clerk reviews and approves clean invoices, and the lead resolves findings and duplicates and exports exactly once](docs/images/process-to-be.svg)
 
 The clerk's work per invoice becomes the review of a prepared card, with a target of 2 minutes instead of 9 to 19: at the
 client's volume, 225 to 475 hours a month would become about 50. That is the target; the handling time of real clerks is not
@@ -61,7 +78,7 @@ with its figure and date, in [Known limitations](docs/OPERATIONS.md#known-limita
 Each "take N" on the board is the numbered take of the demo video, recorded in production on 2026-11-08, that shows the
 requirement; what each step of that recording did is in [Recording in production](docs/OPERATIONS.md#recording-in-production).
 
-![The requirements board after the recording of 2026-11-08: the ten Musts met, each functional one labelled with the take of the production recording that shows it (upload in takes 13 and 14, field sources and vendor match in 15, corrections in 16, tax checks in 17, duplicates in 18, export once in 20, full trace in 21); ready time 24.2 s against 30 s and availability 100 % against 99.5 % from the load test; of the Shoulds, cited answers met and erasure dashed, tested but not run live](docs/images/requirements.png)
+![The requirements board after the recording of 2026-11-08: the ten Musts met, each functional one labelled with the take of the production recording that shows it (upload in takes 13 and 14, field sources and vendor match in 15, corrections in 16, tax checks in 17, duplicates in 18, export once in 20, full trace in 21); ready time 24.2 s against 30 s and availability 100 % against 99.5 % from the load test; of the Shoulds, cited answers met and erasure dashed, tested but not run live](docs/images/requirements.svg)
 
 | REQ | Must | Staging | Production | Evidence |
 |---|---|---|---|---|
@@ -96,7 +113,7 @@ Read on 2026-11-10 with the workbook's queries on production's Application Insig
 out, over 2026-11-03 to 2026-11-08. That is **synthetic use**: the author's walk-through and rehearsal (2026-11-03), a scripted
 browser that seeds a week of use through the web (2026-11-06 and 2026-11-08) and the demo recording (2026-11-08).
 
-![The KPI board on synthetic use: handling time 3.4 s against 2 min, measured on scripted approvals and not on clerks' reviews, touchless rate 92 % against 70 % and corrections 0.5 % against 5 % met; positive feedback 75 % against 80 % missed](docs/images/kpis.png)
+![The KPI board on synthetic use: handling time 3.4 s against 2 min, measured on scripted approvals and not on clerks' reviews, touchless rate 92 % against 70 % and corrections 0.5 % against 5 % met; positive feedback 75 % against 80 % missed](docs/images/kpis.svg)
 
 | KPI | Target | Measured in production | Cases |
 |---|---|---|---|
@@ -113,11 +130,11 @@ all come from the scripted week; the walk-through's and the recording's 3 votes 
 
 | | |
 |---|---|
-| **Type** | AI product: accounts payable invoice processing for a mid-size wholesale distributor |
+| **Type** | AI solution: accounts payable invoice processing for a mid-size wholesale distributor |
 | **Client and users** | the accounts payable team of a Spanish wholesale distributor: clerks upload and review (`Invoice.Process`), the accounting lead decides findings and duplicates and exports (`Invoice.Approve`) |
 | **Azure services** | per environment: Container Apps with built-in Entra sign-in, Cosmos DB for NoSQL serverless, Blob Storage, Service Bus Basic, Application Insights with a KPI and SLA workbook, a budget; in production also four alert rules and an action group. Shared: Foundry (`gpt-5-mini`, Document Intelligence, Prompt Shields), Container Registry, Log Analytics. Both apps run in Folium's one Container Apps environment |
 | **AI** | Document Intelligence `prebuilt-invoice`; `gpt-5-mini` 2025-08-07, pinned; Microsoft Agent Framework: a graph workflow per invoice with checkpoints and human review, one normaliser agent and a read-only assistant, self-hosted; Prompt Shields on every document |
-| **Stack** | Python 3.12, FastAPI, Agent Framework; React, TypeScript and Vite in the common product interface, WCAG 2.2 AA (axe on every pull request; Lighthouse accessibility 100 on the demo build, 2026-11-03) |
+| **Stack** | Python 3.12, FastAPI, Agent Framework; React, TypeScript and Vite in the product's interface, WCAG 2.2 AA (axe on every pull request; Lighthouse accessibility 100 on the demo build, 2026-11-03) |
 | **Environments and delivery** | local with emulators; staging on every merge and production on every release, one image per merge deployed by digest; GitHub Actions with OIDC, no secrets; current release `v1.0.5` (2026-11-08) |
 | **Security** | managed identities and local auth off everywhere, built-in sign-in with app roles, HTTPS only, Prompt Shields on every document, no write tool for any model |
 | **SLA** | availability 99.5 % in business hours and p95 ready under 30 s; measured: 100 % and 24.2 s over 240 invoices in the staging load test of `v1.0.5`'s commit (2026-11-08), 100 % and 20.4 s over 75 standard invoices in production (2026-11-03 to 2026-11-08, synthetic use) |
@@ -125,7 +142,7 @@ all come from the scripted week; the walk-through's and the recording's 3 votes 
 
 ## Architecture
 
-![Per environment, the accounts payable team reaches the Folium app, API and worker, which writes Cosmos DB for the audit, Blob Storage write-once and Service Bus, and sends telemetry to Application Insights; with its managed identity it calls the shared platform: Foundry, Document Intelligence, the registry and Log Analytics](docs/images/architecture.png)
+![Per environment, the accounts payable team reaches the Folium app, API and worker, which writes Cosmos DB for the audit, Blob Storage write-once and Service Bus, and sends telemetry to Application Insights; with its managed identity it calls the shared platform: Foundry, Document Intelligence, the registry and Log Analytics](docs/images/architecture.svg)
 
 One container app serves the web client and the API and runs the queue consumer. An upload is stored in Blob Storage and
 Cosmos DB and queued in Service Bus; the consumer runs the invoice's workflow and saves its checkpoints in Cosmos DB, so a
@@ -133,7 +150,8 @@ review resumes it on any replica. KEDA, the Container Apps autoscaler, scales th
 zero. Staging and production run their own apps in Folium's one Container Apps environment, `cae-folium-env` in `italynorth`,
 which lives in production's resource group; data, telemetry and the shared AI services are in `swedencentral`, where the
 subscription's Container Apps environment quota was already taken
-([ADR-013](docs/adr/013-one-container-apps-environment-per-product.md)).
+([ADR-013](docs/adr/013-one-container-apps-environment-per-product.md)). The details are in
+[`docs/architecture.md`](docs/architecture.md).
 
 ![Production's resource group as deployed, in the Azure portal: the container app and the Container Apps environment in Italy North; Cosmos DB, the app's and the scale rule's managed identities, Service Bus and the storage account in Sweden Central; and the Failure Anomalies smart detector, 8 of its 15 resources](docs/images/resource-group-prod.png)
 
@@ -141,7 +159,10 @@ subscription's Container Apps environment quota was already taken
 
 ### One workflow per invoice
 
-![The workflow per invoice: upload, extract with Document Intelligence, shield with Prompt Shields, normalise with the one agent, validate, review by a person and export; a flagged attack skips the normaliser and goes to validation, and checkpoints from extraction to review let any replica resume it](docs/images/workflow.png)
+![The workflow per invoice: upload, extract with Document Intelligence, shield with Prompt Shields, normalise with the one agent, validate, review by a person and export; a flagged attack skips the normaliser and goes to validation, and checkpoints from extraction to review let any replica resume it](docs/images/workflow.svg)
+
+Each invoice runs one graph, `extract`, `shield`, `normalize`, `validate`, `dedupe` and `review`: `review` pauses it with a
+review request, and its checkpoints in Cosmos DB let any replica resume it ([`docs/architecture.md`](docs/architecture.md)).
 
 ### A function before an agent
 
@@ -189,7 +210,7 @@ every pull request runs axe on the demo build, failing on any serious or critica
 
 ## Environments and releases
 
-![Local code with emulators merges to staging, where the API scales to zero; after the load test and the author's approval, a release deploys the same image to production as a 10 % canary; the Container Apps environment, the registry with one image and Foundry are shared](docs/images/environments.png)
+![Local code with emulators merges to staging, where the API scales to zero; after the load test and the author's approval, a release deploys the same image to production as a 10 % canary; the Container Apps environment, the registry with one image and Foundry are shared](docs/images/environments.svg)
 
 - **Image:** built once per merge (`<yyyymmdd>-main-<sha7>`) and deployed to staging by digest behind a canary label, with a
   health check and a smoke test.
@@ -204,7 +225,7 @@ every pull request runs axe on the demo build, failing on any serious or critica
 
 ### Load tests
 
-![GitHub Actions starts Locust, the load-testing tool, capped at 120 users, against staging: the Folium app scales to two replicas over the doubles, and the SLA gate passes with a p95 of 24.2 s and 0 failures](docs/images/load-test.png)
+![GitHub Actions starts Locust, the load-testing tool, capped at 120 users, against staging: the Folium app scales to two replicas over the doubles, and the SLA gate passes with a p95 of 24.2 s and 0 failures](docs/images/load-test.svg)
 
 `load-test.yml` redeploys the staging digest as a revision where Document Intelligence and the model are replaced by doubles,
 stand-ins that answer with the real services' measured latencies; it runs normal, peak, soak and stress, restores the stable
@@ -277,7 +298,23 @@ At the client's volume, 1,500 invoices and 3,000 pages a month, the estimate is 
 against 3 to 8 € of manual work per invoice. Document Intelligence is 26.4 € of it, `gpt-5-mini` about 5.3 € and Container
 Apps about 4 €. The estimate is compared with Cost Management per environment after a month of use.
 
-## Well-Architected design
+## Microsoft Responsible AI Standard
+
+How the six principles of the Microsoft Responsible AI Standard are applied, and the limitation accepted in each. The impact
+assessment is in [`docs/RESPONSIBLE_AI.md`](docs/RESPONSIBLE_AI.md).
+
+| Principle | Applied | Limitation accepted |
+|---|---|---|
+| Fairness | the same rules, duplicate checks and review route for every vendor, matched by tax ID first; the evaluation set covers five layouts in Spanish and English with degraded scans, and every miss is explained by layout | one of the five layouts needs more review time, never a different decision; quality is reported for the whole set rather than per language |
+| Reliability and Safety | an evaluation gate on every pull request that touches agents, prompts or the workflow (header fields 0.9937, duplicates 1.00 precision and recall, 2026-10-31); Prompt Shields on every document (ADR-002); a person decides every invoice and no model approves or exports (ADR-001); canary release with rollback, restore drilled | Prompt Shields is one of several layers against injected text, and the others held where it did not flag (2 of 4 planted cases); the SLAs are measured on a load test and synthetic use |
+| Privacy and Security | managed identities and local authentication off on every data service; built-in sign-in with two app roles and no client secret (ADR-009); data stored and processed in the EU (ADR-013); the IBAN never reaches the model (ADR-008); six-year retention, then erasure on request (REQ-12) | a Global model deployment may process outside the EU (ADR-008); public endpoints protected by identity (ADR-009); erasure on request is tested and has had no real request yet |
+| Inclusiveness | WCAG 2.2 AA: axe and keyboard-only flows on every pull request, Lighthouse accessibility 100 on the demo build (2026-11-03); invoices in Spanish and English; the assistant answers in the language of the question | the interface is in English; handwriting is out of scope |
+| Transparency | every field on the review card shows its confidence and page next to the original, and fields under 0.80 are highlighted; findings are typed with their evidence; the assistant cites every invoice it relies on; the timeline records the model and prompt versions (REQ-08) | AI use is shown through confidence values and sources rather than a separate notice |
+| Accountability | the impact assessment signed off by the author; a clerk or the lead decides every invoice, and only the lead resolves findings and duplicates, with a reason; an append-only audit trail of every correction and decision (REQ-08); 14 ADRs; four alert rules and an incident procedure | a single-author project; a client deployment would add its own legal, privacy and security review |
+
+## Azure Well-Architected Framework
+
+How the design maps to the five pillars of the Azure Well-Architected Framework, and the trade-off accepted in each.
 
 | Pillar | Applied | Trade-off accepted |
 |---|---|---|
@@ -305,10 +342,10 @@ GitHub environments and for pull requests; no client secret anywhere.
 
 ### GitHub secrets and variables
 
-- Repository secrets: `AZURE_CLIENT_ID_PR`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `ALERT_EMAIL_ADDRESS`.
-- Per environment (`staging`, `production`): the secret `AZURE_CLIENT_ID` and the variables `AUTH_CLIENT_ID`, `RESOURCE_GROUP`
-  and `CONTAINER_APP_NAME`.
-- Variables: `ACR_NAME`, `SHARED_RESOURCE_GROUP`, `FOUNDRY_ACCOUNT_ENDPOINT`, `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL`.
+- **Repository secrets:** `AZURE_CLIENT_ID_PR`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `ALERT_EMAIL_ADDRESS`.
+- **Per environment:** in `staging` and `production`, the secret `AZURE_CLIENT_ID` and the variables `AUTH_CLIENT_ID`,
+  `RESOURCE_GROUP` and `CONTAINER_APP_NAME`.
+- **Variables:** `ACR_NAME`, `SHARED_RESOURCE_GROUP`, `FOUNDRY_ACCOUNT_ENDPOINT`, `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL`.
 
 ### Identities
 
@@ -327,6 +364,8 @@ the roles `Invoice.Process` and `Invoice.Approve`, assignment required.
 - [`docs/RESPONSIBLE_AI.md`](docs/RESPONSIBLE_AI.md): the impact assessment: intended uses, stakeholders, fairness, adverse
   impact and data requirements
 - [`docs/evaluation.md`](docs/evaluation.md): the evaluation gate, its datasets and results, and experiment 001
+- [`docs/architecture.md`](docs/architecture.md): components and where each runs, an invoice from upload to export, identities
+  and roles, environments and promotion
 - [`docs/cost.md`](docs/cost.md): prices, the estimate per environment and per invoice, and the options declined
 - [`docs/adr/`](docs/adr/): the 14 architecture decisions
 - [`CHANGELOG.md`](CHANGELOG.md) and the latest release,
@@ -336,4 +375,4 @@ the roles `Invoice.Process` and `Invoice.Approve`, assignment required.
 
 **Rodrigo Martín Gómez del Moral Herranz**
 
-<a href="https://github.com/Rodrigo-GomezdelMoral"><img src="docs/images/author/github.png" alt="GitHub" height="36"></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/in/rodrigo-mart%C3%ADn-g%C3%B3mez-del-moral-herranz"><img src="docs/images/author/linkedin.png" alt="LinkedIn" height="36"></a>&nbsp;&nbsp;<a href="https://rodrigogomezdelmoralherranz.es"><img src="docs/images/author/portfolio.png" alt="Portfolio" height="36"></a>
+<a href="mailto:rodrigo.gomezdelmoral@gmail.com"><img src="docs/images/author/email.png" alt="Email" height="36"></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/in/rodrigo-mart%C3%ADn-g%C3%B3mez-del-moral-herranz"><img src="docs/images/author/linkedin.png" alt="LinkedIn" height="36"></a>&nbsp;&nbsp;<a href="https://github.com/Rodrigo-GomezdelMoral"><img src="docs/images/author/github.png" alt="GitHub" height="36"></a>&nbsp;&nbsp;<a href="https://rodrigogomezdelmoral.es"><img src="docs/images/author/portfolio.png" alt="Professional Portfolio" height="36"></a>

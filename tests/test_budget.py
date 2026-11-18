@@ -94,7 +94,7 @@ def test_no_identifiers() -> None:
     for name in listed():
         raw = (ROOT / name).read_bytes()
         try:
-            content = "" if b"\0" in raw else raw.decode("utf-8")
+            content = "" if b"\0" in raw else raw.decode("utf-8").replace("rodrigo.gomezdelmoral@gmail.com", "")
         except UnicodeDecodeError:
             continue
         found += [f"{name}: {kind}" for kind, pattern in IDENTIFIERS.items() if pattern.search(content)]

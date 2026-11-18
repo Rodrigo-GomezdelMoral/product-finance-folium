@@ -132,7 +132,7 @@ The author is the only operator, so every role is the author's; the order matter
   `rg-folium-stg-swc`; `cae-folium-env` is in `rg-folium-prod-swc` and stays.
 - **Remove production:** deleting the resources of `rg-folium-prod-swc` also deletes `cae-folium-env` and stops staging
   until the environment is recreated. The shared base is untouched.
-- **Recreate the environment:** run `../_scripts/product-finance-folium/06-environment.sh`, which deletes the first
+- **Recreate the environment:** run a script the author keeps outside the repository, which deletes the first
   decision's `cae-folium-stg-spc` and its app if present, deploys `infra/modules/environment.bicep` with production's
   parameters and grants the staging CI principal its join role again; then deploy staging (`deploy.yml`) and production (`release.yml`) and run `04-signin.sh`
   after each, because the apps' host names change. To move region, change `environmentLocation` and the script's
@@ -378,7 +378,7 @@ Open on 2026-11-10, each with its figure and the reason it stays open.
 | Alerts not fired on purpose | definitions checked and none fired in 30 days, 2026-11-03; no test notification sent | Residual risk: a delivery fault between the action group and its receiver would go unnoticed. Planned at the next maintenance window |
 | REQ-12 erasure (Should) tested only | `test_erase_redacts_personal_fields` passes; neither the refusal inside retention nor an erasure has run live, 2026-11-03 | Invoices are kept six years, so the first erasure of a 2026 invoice is possible in 2033; the live refusal is planned at the next maintenance window, in staging only |
 | Assistant's reading of "waiting for approval" | in production it answered "There are no invoices waiting for approval." while two invoices were `ready` (waiting for the clerk's review): it reads the question as `with_lead`, as staging's recorded answer did, 2026-11-03 | REQ-09's citation criterion holds; a wording change in the assistant's prompt goes through the evaluation gate, so it waits for the next prompt change |
-| Cost per invoice estimated, not measured | estimate 0.025 €; month to date on 2026-11-02: staging 0.85 € (Cosmos DB), production 0.006 € (Azure Monitor), no Container Apps charge yet | The Foundry and Document Intelligence spend sits in the shared group and cannot be split per product; compared with Cost Management after a month of use |
+| Cost per invoice estimated, not measured | estimate 0.025 €; month to date on 2026-11-02: staging 0.85 € (Cosmos DB), production 0.006 € (Azure Monitor), no Container Apps charge yet | The Foundry and Document Intelligence spend sits in the shared group and cannot be split per workload; compared with Cost Management after a month of use |
 | Node 26 for the web build stage | Dependabot PR #8 (Node 24.22.2 to 26.12.1) closed by the author on 2026-11-02 | The change is in the `Dockerfile`, a runtime path, so it needs a load test, and the stage only builds static files; Node 24 is supported until 2028-04-30. Revisited at the next release that changes the runtime, or by early 2028 at the latest |
 | Storage without zone redundancy | Advisor, High, staging, 2026-11-02 | Single-zone trade-off of the whole product (above) |
 | CI principals' privileges | the RBAC Administrator condition of both CI principals still allows *Key Vault Secrets User*, although there is no vault (ADR-009); both hold *Log Analytics Contributor* on the shared workspace, justified in no ADR | Identity changes are the author's; narrowed at the next identity review |

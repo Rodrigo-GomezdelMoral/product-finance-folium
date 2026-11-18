@@ -1,4 +1,4 @@
-# Folium: product
+# Folium · product definition
 
 Folium turns supplier invoices into reviewed, validated and de-duplicated entries ready for the ERP. A model reads what a
 deterministic extractor leaves ambiguous; people approve every invoice, and nothing reaches the ERP twice.
@@ -22,7 +22,7 @@ decided what on every invoice.
 
 One clerk does every step, by hand, for every invoice. The times are the client's.
 
-![Accounts payable today, in BPMN 2.0: the clerk receives, reads, looks up the vendor, keys the header and the lines, checks totals and VAT, searches for duplicates and files the PDF, 9 to 19 minutes per invoice](images/process-as-is.png)
+![Accounts payable today, in BPMN 2.0: the clerk receives, reads, looks up the vendor, keys the header and the lines, checks totals and VAT, searches for duplicates and files the PDF, 9 to 19 minutes per invoice](images/process-as-is.svg)
 
 | # | Step | Who | Time |
 |---|---|---|---|
@@ -42,7 +42,7 @@ The clerk uploads a batch. Folium extracts, normalises, validates and checks dup
 under 30 seconds. The clerk reviews, corrects and approves clean invoices; invoices with findings or duplicates go to the lead,
 who resolves them and exports approved invoices in the ERP layout. **Folium never approves and never exports.**
 
-![Accounts payable with Folium, in BPMN 2.0: the clerk uploads a batch and reviews, Folium extracts, normalises, validates and checks duplicates, ready for review in under 30 s; the clerk approves clean invoices and the lead resolves findings and duplicates and exports exactly once](images/process-to-be.png)
+![Accounts payable with Folium, in BPMN 2.0: the clerk uploads a batch and reviews, Folium extracts, normalises, validates and checks duplicates, ready for review in under 30 s; the clerk approves clean invoices and the lead resolves findings and duplicates and exports exactly once](images/process-to-be.svg)
 
 | # | Step | Who | Time |
 |---|---|---|---|

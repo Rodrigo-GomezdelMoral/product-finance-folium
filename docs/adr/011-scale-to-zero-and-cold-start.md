@@ -11,7 +11,7 @@ replica that starts from zero adds the image pull and the Python start to the fi
 ## Options
 
 1. **Minimum one replica** all month.
-2. **A KEDA cron rule** that keeps one replica in business hours: about 3 to 4 €/month at the idle rate (build prompt
+2. **A KEDA cron rule** that keeps one replica in business hours: about 3 to 4 €/month at the idle rate (the specification's
    estimate; phase 7 measures it).
 3. **Minimum zero,** and measure the cold start before paying for warmth.
 
@@ -60,7 +60,7 @@ night and at weekends. The first upload of the day no longer waits the ≈ 35 s 
 option 3 and still ends every phase at zero replicas.
 
 **Cost:** about 242 hours a month (11 hours on about 22 weekdays) of one 0.5 vCPU, 1 GiB replica at the idle rate while it
-waits, about 3 to 4 €/month: the build prompt's estimate. The Retail Prices API returned only the free-grant rows of the idle
+waits, about 3 to 4 €/month: the specification's estimate. The Retail Prices API returned only the free-grant rows of the idle
 meters on 2026-11-01, so Cost Management confirms the figure after a month in production (`docs/cost.md`). The monthly free
 grant is per subscription and shared with everything else in it, so it is not counted.
 

@@ -1,14 +1,17 @@
 # Responsible AI impact assessment
 
-Following Microsoft's Responsible AI Impact Assessment Template, sections 1 to 5. Assessed on 2026-10-31, at the end of the
-evaluation phase; reviewed again before the release.
+Folium's impact assessment follows the sections of the Responsible AI Impact Assessment Template and the goals of the
+[Microsoft Responsible AI Standard](https://www.microsoft.com/ai/principles-and-approach), together with the responsible AI
+guidance of the [Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/) for
+[AI workloads](https://learn.microsoft.com/azure/well-architected/ai/responsible-ai). Assessed on 2026-10-31, at the end of
+the evaluation phase; reviewed again before the release.
 
 ## 1. System information
 
 | | |
 |---|---|
 | System | Folium: supplier invoices extracted, validated and de-duplicated, with human review and ERP export |
-| Lifecycle stage | Development: workflow, agents and evaluation implemented; API, web and deployment in later phases |
+| Lifecycle stage | Deployed: staging and production in Azure; the latest release is `v1.0.5` (2026-11-08) |
 | Description | A clerk uploads invoices. Document Intelligence reads them; Prompt Shields screens their text; one agent, the `Normalizer` on `gpt-5-mini`, completes the tax lines and the withholding; deterministic rules validate them and check duplicates; a person approves. A read-only `Assistant` answers questions about the invoices. |
 | Purpose | Give the accounts payable team back the 9 to 19 minutes each invoice takes by hand, and stop duplicates and wrong tax lines before the ERP |
 | Features using AI | Field extraction (Document Intelligence `prebuilt-invoice`), prompt injection detection (Prompt Shields), completion of tax lines and IRPF (`Normalizer`), questions in natural language (`Assistant`) |
@@ -39,12 +42,32 @@ on the client's real invoices is measured in staging through the field correctio
 
 ### 2.3 Goal-driven requirements
 
-- **Human oversight (A5):** the AI never approves, rejects or exports; a clerk or the lead decides every invoice, and only the
-  lead resolves findings and duplicates (REQ-04, REQ-05, REQ-06).
-- **Intelligibility (T1):** every field shows its confidence and the place on the page it came from; the fields the model
-  filled have confidence 0 and are always highlighted; every finding is typed with its evidence.
-- **Communication (T2) and disclosure (T3):** the review card, built in phase 5, marks the values read by AI; this document
-  and the README state the limitations below.
+**Goals of the Responsible AI Standard that apply:**
+
+- *Impact assessment (A1):* this document, assessed on 2026-10-31 at the end of the evaluation phase, reviewed again before
+  the release and signed off by the author (section 5).
+- *Oversight of significant adverse impacts (A2):* none of Microsoft's restricted uses applies and no consequential decision
+  about a person is automated (section 3); a real deployment would need the client's legal, privacy and security review
+  before release.
+- *Fit for purpose (A3):* on 60 synthetic invoices with ground truth, header fields are 0.9937 right and line items 0.9186,
+  and every planted error and every duplicate is found with no false finding (section 2.1); the unsupported uses are listed
+  in section 3.
+- *Data governance and management (A4):* classification, residency and retention, with erasure on request after it, are
+  stated in section 4; no model is trained or fine-tuned, and the evaluation data is synthetic.
+- *Human oversight and control (A5):* the AI never approves, rejects or exports; a clerk or the lead decides every invoice,
+  and only the lead resolves findings and duplicates (REQ-04, REQ-05, REQ-06).
+- *System intelligibility for decision making (T1):* every field shows its confidence and the place on the page it came
+  from; the fields the model filled have confidence 0 and are always highlighted; every finding is typed with its evidence.
+- *Communication to stakeholders (T2):* this document and the README state the limitations below (section 3).
+- *Disclosure of AI interaction (T3):* the review card, built in phase 5, marks the values read by AI.
+- *Quality of service (F1):* extraction quality differs by layout, at the cost of extra review time for those vendors, not
+  of a different decision; the rules and the duplicate checks are the same for all (section 2.4).
+- *Failures and remediations (RS2):* a missed duplicate is the costliest failure, so duplicate recall must be 1.00 in the
+  gate; the tax cases the rules do not cover become a finding for the lead, never a silent pass (section 3); every harm has
+  its mitigation and its evidence in section 5.
+- *Ongoing monitoring, feedback and evaluation (RS3):* extraction quality is measured on every evaluation run, a model change
+  passes the evaluation gate before it ships, and fitness on the client's real invoices is measured in staging through the
+  field correction rate and the touchless rate.
 
 ### 2.4 Fairness
 
@@ -101,5 +124,5 @@ on the client's real invoices is measured in staging through the field correctio
 | Personal data exposure | No IBAN to the model or in the assistant's tools; no key authentication; erasure after retention | `test_assistant_has_no_write_tool`; `no_leak` check |
 | Harmful content | Content filters of the shared deployment's guardrail `guardrail-chat`, based on `Microsoft.DefaultV2` | shared base, phase 0 |
 
-**Sign-off:** the author, for this portfolio. A real deployment would need the client's legal, privacy and security review
+**Sign-off:** the author. A real deployment would need the client's legal, privacy and security review
 before release.
