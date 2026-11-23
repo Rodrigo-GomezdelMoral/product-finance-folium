@@ -108,7 +108,7 @@ per region. This release reaches production with one environment for the whole p
   region (`environmentLocation`); data stays in `swedencentral`. `appLocation` and the region codes are gone.
 - The staging CI principal gets read and join rights on the environment only, through a custom role.
 - ADR-008, `README.md`, `docs/OPERATIONS.md` (staging at zero leaves production untouched; how to recreate the
-  environment), `docs/THREAT_MODEL.md`, `docs/cost.md`, `docs/RESPONSIBLE_AI.md` and `CLAUDE.md` follow.
+  environment), `docs/THREAT_MODEL.md`, `docs/cost.md` and `docs/RESPONSIBLE_AI.md` follow.
 
 ### Removed
 
