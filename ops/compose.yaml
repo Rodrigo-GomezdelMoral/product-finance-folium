@@ -2,7 +2,7 @@ name: folium
 
 services:
   cosmos:
-    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-EN20261019@sha256:db53613dae19d0a3d5ad50688d14aa6e957af082dafea56b52e1bd3a6b3f1406
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-EN20261019@sha256:e2b2c3ca0b99b256ff0781518714592a0f54fefc30d76d70a450d65ead3c96cb
     ports: ["8081:8081"]
 
   azurite:
